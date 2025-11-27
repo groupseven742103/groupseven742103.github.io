@@ -20,7 +20,7 @@
       padding: 24px 32px;
       border-radius: 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      min-width: 280px;
+      min-width: 300px;
       text-align: center;
     }
     h1 {
@@ -31,7 +31,7 @@
     .value {
       font-size: 32px;
       font-weight: bold;
-      margin: 8px 0;
+      margin: 6px 0;
     }
     .label {
       font-size: 12px;
@@ -47,6 +47,34 @@
     .status span {
       font-weight: bold;
     }
+    .indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .indicator-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #374151;
+    }
+    .btn {
+      margin: 6px 4px 0 4px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-on {
+      background: #10b981;
+      color: #022c22;
+    }
+    .btn-off {
+      background: #ef4444;
+      color: #450a0a;
+    }
   </style>
 </head>
 <body>
@@ -58,6 +86,17 @@
 
     <div class="label">Humidity</div>
     <div id="hum" class="value">--.- %</div>
+
+    <div class="label">Temperature Level</div>
+    <div class="indicator">
+      <div id="level-dot" class="indicator-dot"></div>
+      <div id="level-text">--</div>
+    </div>
+
+    <div class="label" style="margin-top:10px;">LED Indicator</div>
+    <div id="indicator-state" class="value" style="font-size:18px;">OFF</div>
+    <button class="btn btn-on" onclick="setIndicator(true)">Turn ON</button>
+    <button class="btn btn-off" onclick="setIndicator(false)">Turn OFF</button>
 
     <div class="status">
       MQTT Status: <span id="status">Connecting…</span><br />
@@ -76,13 +115,19 @@
       reconnectPeriod: 2000
     };
 
-    const topicTemp = "robota/esp32/temperature";
-    const topicHum  = "robota/esp32/humidity";
+    const topicTemp    = "robota/esp32/temperature";
+    const topicHum     = "robota/esp32/humidity";
+    const topicLevel   = "robota/esp32/temp_level";
+    const topicIndCmd  = "robota/esp32/indicator/cmd";
+    const topicIndState= "robota/esp32/indicator/state";
 
     const statusEl = document.getElementById("status");
     const tempEl   = document.getElementById("temp");
     const humEl    = document.getElementById("hum");
     const lastEl   = document.getElementById("last-update");
+    const levelTextEl = document.getElementById("level-text");
+    const levelDotEl  = document.getElementById("level-dot");
+    const indicatorStateEl = document.getElementById("indicator-state");
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -93,15 +138,28 @@
       lastEl.textContent = now.toLocaleTimeString();
     }
 
-    // Connect using MQTT.js
+    function updateLevel(level) {
+      levelTextEl.textContent = level;
+      let color = "#374151";
+      if (level === "COOL") color = "#22c55e";   // green
+      else if (level === "WARM") color = "#eab308"; // yellow
+      else if (level === "HOT") color = "#ef4444";  // red;
+      levelDotEl.style.background = color;
+    }
+
+    function setIndicator(on) {
+      if (!client.connected) return;
+      const msg = on ? "ON" : "OFF";
+      client.publish(topicIndCmd, msg);
+    }
+
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
       setStatus("Connected");
       console.log("MQTT connected");
 
-      // Subscribe to topics
-      client.subscribe([topicTemp, topicHum], (err) => {
+      client.subscribe([topicTemp, topicHum, topicLevel, topicIndState], (err) => {
         if (err) {
           console.error("Subscribe error:", err);
           setStatus("Subscribe error");
@@ -129,6 +187,12 @@
         setLastUpdate();
       } else if (topic === topicHum) {
         humEl.textContent = payload + " %";
+        setLastUpdate();
+      } else if (topic === topicLevel) {
+        updateLevel(payload);
+        setLastUpdate();
+      } else if (topic === topicIndState) {
+        indicatorStateEl.textContent = payload;
         setLastUpdate();
       }
     });
