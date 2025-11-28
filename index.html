@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>ESP32 Weather Dashboard</title>
+  <!-- MQTT client -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <!-- Chart.js for graph -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -20,7 +24,7 @@
       padding: 24px 32px;
       border-radius: 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      min-width: 300px;
+      min-width: 320px;
       text-align: center;
     }
     h1 {
@@ -75,6 +79,13 @@
       background: #ef4444;
       color: #450a0a;
     }
+    /* make the chart fit nicely */
+    #tempChart {
+      margin-top: 10px;
+      background: #020617;
+      border-radius: 8px;
+      padding: 4px;
+    }
   </style>
 </head>
 <body>
@@ -92,6 +103,13 @@
       <div id="level-dot" class="indicator-dot"></div>
       <div id="level-text">--</div>
     </div>
+
+    <div class="label" style="margin-top:10px;">Temp Threshold</div>
+    <div id="threshold" class="value" style="font-size:16px;">--</div>
+
+    <!-- GRAPH -->
+    <div class="label" style="margin-top:10px;">Temperature Graph</div>
+    <canvas id="tempChart" width="300" height="150"></canvas>
 
     <div class="label" style="margin-top:10px;">LED Indicator</div>
     <div id="indicator-state" class="value" style="font-size:18px;">OFF</div>
@@ -115,19 +133,20 @@
       reconnectPeriod: 2000
     };
 
-    const topicTemp    = "robota/esp32/temperature";
-    const topicHum     = "robota/esp32/humidity";
-    const topicLevel   = "robota/esp32/temp_level";
-    const topicIndCmd  = "robota/esp32/indicator/cmd";
-    const topicIndState= "robota/esp32/indicator/state";
+    const topicTemp     = "robota/esp32/temperature";
+    const topicHum      = "robota/esp32/humidity";
+    const topicLevel    = "robota/esp32/temp_level";
+    const topicIndCmd   = "robota/esp32/indicator/cmd";
+    const topicIndState = "robota/esp32/indicator/state";
 
-    const statusEl = document.getElementById("status");
-    const tempEl   = document.getElementById("temp");
-    const humEl    = document.getElementById("hum");
-    const lastEl   = document.getElementById("last-update");
-    const levelTextEl = document.getElementById("level-text");
-    const levelDotEl  = document.getElementById("level-dot");
-    const indicatorStateEl = document.getElementById("indicator-state");
+    const statusEl          = document.getElementById("status");
+    const tempEl            = document.getElementById("temp");
+    const humEl             = document.getElementById("hum");
+    const lastEl            = document.getElementById("last-update");
+    const levelTextEl       = document.getElementById("level-text");
+    const levelDotEl        = document.getElementById("level-dot");
+    const indicatorStateEl  = document.getElementById("indicator-state");
+    const thresholdEl       = document.getElementById("threshold");
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -138,13 +157,104 @@
       lastEl.textContent = now.toLocaleTimeString();
     }
 
+    // ===== Graph setup =====
+    const maxPoints = 20;
+    const labels = [];               // time labels
+    const tempData = [];             // actual temp
+    const coolThreshData = [];       // 28 °C
+    const warmThreshData = [];       // 32 °C
+
+    const ctx = document.getElementById("tempChart").getContext("2d");
+    const tempChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "Temperature (°C)",
+            data: tempData,
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59,130,246,0.2)",
+            tension: 0.2,
+            pointRadius: 2
+          },
+          {
+            label: "Cool/Warm threshold (28 °C)",
+            data: coolThreshData,
+            borderColor: "#22c55e",
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 0
+          },
+          {
+            label: "Warm/Hot threshold (32 °C)",
+            data: warmThreshData,
+            borderColor: "#ef4444",
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: false,
+        animation: false,
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true }
+          },
+          y: {
+            ticks: { color: "#9ca3af" },
+            suggestedMin: 20,
+            suggestedMax: 40
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "#e5e7eb", font: { size: 10 } }
+          }
+        }
+      }
+    });
+
+    function addTempPoint(temp) {
+      const now = new Date().toLocaleTimeString();
+
+      labels.push(now);
+      tempData.push(temp);
+      coolThreshData.push(28);
+      warmThreshData.push(32);
+
+      if (labels.length > maxPoints) {
+        labels.shift();
+        tempData.shift();
+        coolThreshData.shift();
+        warmThreshData.shift();
+      }
+
+      tempChart.update();
+    }
+
+    // update text + dot + threshold label
     function updateLevel(level) {
       levelTextEl.textContent = level;
+
       let color = "#374151";
-      if (level === "COOL") color = "#22c55e";   // green
-      else if (level === "WARM") color = "#eab308"; // yellow
-      else if (level === "HOT") color = "#ef4444";  // red;
+      let thresholdText = "--";
+
+      if (level === "COOL") {
+        color = "#22c55e";       // green
+        thresholdText = "< 28 °C";
+      } else if (level === "WARM") {
+        color = "#eab308";       // yellow
+        thresholdText = "28 – 32 °C";
+      } else if (level === "HOT") {
+        color = "#ef4444";       // red
+        thresholdText = "> 32 °C";
+      }
+
       levelDotEl.style.background = color;
+      thresholdEl.textContent = thresholdText;
     }
 
     function setIndicator(on) {
@@ -184,6 +294,8 @@
 
       if (topic === topicTemp) {
         tempEl.textContent = payload + " °C";
+        const t = parseFloat(payload);
+        if (!isNaN(t)) addTempPoint(t);
         setLastUpdate();
       } else if (topic === topicHum) {
         humEl.textContent = payload + " %";
