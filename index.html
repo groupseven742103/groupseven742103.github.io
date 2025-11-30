@@ -24,7 +24,7 @@
       padding: 24px 32px;
       border-radius: 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      min-width: 320px;
+      min-width: 600px;
       text-align: center;
     }
     h1 {
@@ -79,12 +79,23 @@
       background: #ef4444;
       color: #450a0a;
     }
-    /* make the chart fit nicely */
-    #tempChart {
+    /* chart containers side by side */
+    .graphs {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: flex-start;
       margin-top: 10px;
+    }
+    .graph-box {
       background: #020617;
       border-radius: 8px;
       padding: 4px;
+    }
+    #tempChart,
+    #presChart {
+      background: #020617;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -98,7 +109,7 @@
     <div class="label">Humidity</div>
     <div id="hum" class="value">--.- %</div>
 
-    <!-- NEW: Atmospheric Pressure -->
+    <!-- Atmospheric Pressure -->
     <div class="label">Atmospheric Pressure</div>
     <div id="pres" class="value" style="font-size:24px;">----.- hPa</div>
 
@@ -111,9 +122,16 @@
     <div class="label" style="margin-top:10px;">Temp Threshold</div>
     <div id="threshold" class="value" style="font-size:16px;">--</div>
 
-    <!-- GRAPH -->
-    <div class="label" style="margin-top:10px;">Temperature Graph</div>
-    <canvas id="tempChart" width="300" height="150"></canvas>
+    <!-- GRAPHS -->
+    <div class="label" style="margin-top:10px;">Temperature & Pressure Graphs</div>
+    <div class="graphs">
+      <div class="graph-box">
+        <canvas id="tempChart" width="280" height="150"></canvas>
+      </div>
+      <div class="graph-box">
+        <canvas id="presChart" width="280" height="150"></canvas>
+      </div>
+    </div>
 
     <div class="label" style="margin-top:10px;">LED Indicator</div>
     <div id="indicator-state" class="value" style="font-size:18px;">OFF</div>
@@ -142,12 +160,12 @@
     const topicLevel    = "robota/esp32/temp_level";
     const topicIndCmd   = "robota/esp32/indicator/cmd";
     const topicIndState = "robota/esp32/indicator/state";
-    const topicPress    = "robota/esp32/pressure";   // NEW: pressure topic
+    const topicPress    = "robota/esp32/pressure";   // pressure topic
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
     const humEl             = document.getElementById("hum");
-    const presEl            = document.getElementById("pres");  // NEW
+    const presEl            = document.getElementById("pres");
     const lastEl            = document.getElementById("last-update");
     const levelTextEl       = document.getElementById("level-text");
     const levelDotEl        = document.getElementById("level-dot");
@@ -163,7 +181,7 @@
       lastEl.textContent = now.toLocaleTimeString();
     }
 
-    // ===== Graph setup =====
+    // ===== Temperature graph setup =====
     const maxPoints = 20;
     const labels = [];               // time labels
     const tempData = [];             // actual temp
@@ -241,6 +259,61 @@
       tempChart.update();
     }
 
+    // ===== Pressure graph setup =====
+    const presLabels = [];
+    const presData = [];
+
+    const ctxP = document.getElementById("presChart").getContext("2d");
+    const presChart = new Chart(ctxP, {
+      type: "line",
+      data: {
+        labels: presLabels,
+        datasets: [
+          {
+            label: "Pressure (hPa)",
+            data: presData,
+            borderColor: "#f97316",
+            backgroundColor: "rgba(249,115,22,0.2)",
+            tension: 0.2,
+            pointRadius: 2
+          }
+        ]
+      },
+      options: {
+        responsive: false,
+        animation: false,
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true }
+          },
+          y: {
+            ticks: { color: "#9ca3af" },
+            suggestedMin: 980,
+            suggestedMax: 1040
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "#e5e7eb", font: { size: 10 } }
+          }
+        }
+      }
+    });
+
+    function addPresPoint(p) {
+      const now = new Date().toLocaleTimeString();
+
+      presLabels.push(now);
+      presData.push(p);
+
+      if (presLabels.length > maxPoints) {
+        presLabels.shift();
+        presData.shift();
+      }
+
+      presChart.update();
+    }
+
     // update text + dot + threshold label
     function updateLevel(level) {
       levelTextEl.textContent = level;
@@ -249,13 +322,13 @@
       let thresholdText = "--";
 
       if (level === "COOL") {
-        color = "#22c55e";       // green
+        color = "#22c55e";
         thresholdText = "< 28 °C";
       } else if (level === "WARM") {
-        color = "#eab308";       // yellow
+        color = "#eab308";
         thresholdText = "28 – 32 °C";
       } else if (level === "HOT") {
-        color = "#ef4444";       // red
+        color = "#ef4444";
         thresholdText = "> 32 °C";
       }
 
@@ -276,7 +349,7 @@
       console.log("MQTT connected");
 
       client.subscribe(
-        [topicTemp, topicHum, topicLevel, topicIndState, topicPress], // NEW: subscribe pressure
+        [topicTemp, topicHum, topicLevel, topicIndState, topicPress],
         (err) => {
           if (err) {
             console.error("Subscribe error:", err);
@@ -315,10 +388,11 @@
       } else if (topic === topicIndState) {
         indicatorStateEl.textContent = payload;
         setLastUpdate();
-      } else if (topic === topicPress) {          // NEW: handle pressure
+      } else if (topic === topicPress) {
         const p = parseFloat(payload);
         if (!isNaN(p)) {
           presEl.textContent = p.toFixed(1) + " hPa";
+          addPresPoint(p);
         } else {
           presEl.textContent = payload + " hPa";
         }
