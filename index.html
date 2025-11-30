@@ -98,6 +98,10 @@
     <div class="label">Humidity</div>
     <div id="hum" class="value">--.- %</div>
 
+    <!-- NEW: Atmospheric Pressure -->
+    <div class="label">Atmospheric Pressure</div>
+    <div id="pres" class="value" style="font-size:24px;">----.- hPa</div>
+
     <div class="label">Temperature Level</div>
     <div class="indicator">
       <div id="level-dot" class="indicator-dot"></div>
@@ -138,10 +142,12 @@
     const topicLevel    = "robota/esp32/temp_level";
     const topicIndCmd   = "robota/esp32/indicator/cmd";
     const topicIndState = "robota/esp32/indicator/state";
+    const topicPress    = "robota/esp32/pressure";   // NEW: pressure topic
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
     const humEl             = document.getElementById("hum");
+    const presEl            = document.getElementById("pres");  // NEW
     const lastEl            = document.getElementById("last-update");
     const levelTextEl       = document.getElementById("level-text");
     const levelDotEl        = document.getElementById("level-dot");
@@ -269,14 +275,17 @@
       setStatus("Connected");
       console.log("MQTT connected");
 
-      client.subscribe([topicTemp, topicHum, topicLevel, topicIndState], (err) => {
-        if (err) {
-          console.error("Subscribe error:", err);
-          setStatus("Subscribe error");
-        } else {
-          console.log("Subscribed to topics");
+      client.subscribe(
+        [topicTemp, topicHum, topicLevel, topicIndState, topicPress], // NEW: subscribe pressure
+        (err) => {
+          if (err) {
+            console.error("Subscribe error:", err);
+            setStatus("Subscribe error");
+          } else {
+            console.log("Subscribed to topics");
+          }
         }
-      });
+      );
     });
 
     client.on("reconnect", () => {
@@ -305,6 +314,14 @@
         setLastUpdate();
       } else if (topic === topicIndState) {
         indicatorStateEl.textContent = payload;
+        setLastUpdate();
+      } else if (topic === topicPress) {          // NEW: handle pressure
+        const p = parseFloat(payload);
+        if (!isNaN(p)) {
+          presEl.textContent = p.toFixed(1) + " hPa";
+        } else {
+          presEl.textContent = payload + " hPa";
+        }
         setLastUpdate();
       }
     });
