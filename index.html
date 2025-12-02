@@ -97,11 +97,118 @@
       background: #020617;
       border-radius: 8px;
     }
+
+    /* ===== RAIN ANIMATION ===== */
+    .rain-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .rain-icon {
+      width: 48px;
+      height: 40px;
+      position: relative;
+    }
+    .rain-cloud {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      width: 36px;
+      height: 22px;
+      background: #e5e7eb;
+      border-radius: 16px;
+      box-shadow:
+        -8px 4px 0 0 #e5e7eb,
+        8px 4px 0 0 #e5e7eb;
+    }
+    .rain-drop {
+      position: absolute;
+      width: 6px;
+      height: 10px;
+      background: #38bdf8;
+      border-radius: 50% 50% 50% 50%;
+      opacity: 0;
+      transform-origin: center;
+    }
+    .drop1 { left: 14px; top: 20px; }
+    .drop2 { left: 24px; top: 20px; }
+    .drop3 { left: 34px; top: 20px; }
+
+    @keyframes rainFall {
+      0%   { transform: translateY(0);     opacity: 1; }
+      70%  { transform: translateY(10px); opacity: 1; }
+      100% { transform: translateY(14px); opacity: 0; }
+    }
+
+    @keyframes sunPulse {
+      0%   { transform: scale(1);   box-shadow: 0 0 0 rgba(250,204,21,0.4); }
+      100% { transform: scale(1.1); box-shadow: 0 0 12px rgba(250,204,21,0.7); }
+    }
+
+    @keyframes cloudShake {
+      0%   { transform: translateX(-1px); }
+      100% { transform: translateX(1px); }
+    }
+
+    /* DRY = sun glow, no raindrops */
+    .rain-icon.dry .rain-cloud {
+      background: #facc15;
+      box-shadow: 0 0 8px rgba(250,204,21,0.6);
+      animation: sunPulse 1.2s ease-in-out alternate infinite;
+    }
+    .rain-icon.dry .rain-drop {
+      opacity: 0;
+      animation: none;
+    }
+
+    /* LIGHT RAIN = few slow drops */
+    .rain-icon.light .rain-cloud {
+      background: #e5e7eb;
+      box-shadow: none;
+    }
+    .rain-icon.light .drop1,
+    .rain-icon.light .drop2 {
+      opacity: 1;
+      animation: rainFall 0.9s linear infinite;
+    }
+    .rain-icon.light .drop2 {
+      animation-delay: 0.3s;
+    }
+    .rain-icon.light .drop3 {
+      opacity: 0;
+      animation: none;
+    }
+
+    /* HEAVY RAIN = more fast drops + shaking cloud */
+    .rain-icon.heavy .rain-cloud {
+      background: #e5e7eb;
+      animation: cloudShake 0.2s ease-in-out alternate infinite;
+    }
+    .rain-icon.heavy .drop1,
+    .rain-icon.heavy .drop2,
+    .rain-icon.heavy .drop3 {
+      opacity: 1;
+      animation: rainFall 0.5s linear infinite;
+    }
+    .rain-icon.heavy .drop2 { animation-delay: 0.15s; }
+    .rain-icon.heavy .drop3 { animation-delay: 0.3s; }
+
+    .rain-text-main {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .rain-text-adc {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>GROUP 7 ESP32 WEATHER DASHBOARD
+    <h1>GROUP 7 ESP32 WEATHER DASHBOARD</h1>
 
     <div class="label">Temperature</div>
     <div id="temp" class="value">--.- °C</div>
@@ -113,7 +220,22 @@
     <div class="label">Atmospheric Pressure</div>
     <div id="pres" class="value" style="font-size:24px;">----.- hPa</div>
 
-    <div class="label">Temperature Level</div>
+    <!-- RAIN STATUS -->
+    <div class="label" style="margin-top:6px;">Rain Status</div>
+    <div class="rain-row">
+      <div id="rain-icon" class="rain-icon">
+        <div class="rain-cloud"></div>
+        <div class="rain-drop drop1"></div>
+        <div class="rain-drop drop2"></div>
+        <div class="rain-drop drop3"></div>
+      </div>
+      <div>
+        <div id="rain-status" class="rain-text-main">--</div>
+        <div id="rain-adc" class="rain-text-adc">ADC: --</div>
+      </div>
+    </div>
+
+    <div class="label" style="margin-top:10px;">Temperature Level</div>
     <div class="indicator">
       <div id="level-dot" class="indicator-dot"></div>
       <div id="level-text">--</div>
@@ -155,12 +277,14 @@
       reconnectPeriod: 2000
     };
 
-    const topicTemp     = "robota/esp32/temperature";
-    const topicHum      = "robota/esp32/humidity";
-    const topicLevel    = "robota/esp32/temp_level";
-    const topicIndCmd   = "robota/esp32/indicator/cmd";
-    const topicIndState = "robota/esp32/indicator/state";
-    const topicPress    = "robota/esp32/pressure";   // pressure topic
+    const topicTemp       = "robota/esp32/temperature";
+    const topicHum        = "robota/esp32/humidity";
+    const topicLevel      = "robota/esp32/temp_level";
+    const topicIndCmd     = "robota/esp32/indicator/cmd";
+    const topicIndState   = "robota/esp32/indicator/state";
+    const topicPress      = "robota/esp32/pressure";
+    const topicRainStatus = "robota/esp32/rain_status";
+    const topicRainAdc    = "robota/esp32/rain_adc";
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
@@ -171,6 +295,9 @@
     const levelDotEl        = document.getElementById("level-dot");
     const indicatorStateEl  = document.getElementById("indicator-state");
     const thresholdEl       = document.getElementById("threshold");
+    const rainStatusEl      = document.getElementById("rain-status");
+    const rainAdcEl         = document.getElementById("rain-adc");
+    const rainIconEl        = document.getElementById("rain-icon");
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -342,6 +469,32 @@
       client.publish(topicIndCmd, msg);
     }
 
+    // ===== RAIN UI UPDATE =====
+    function updateRain(status, adcValue) {
+      if (status) {
+        rainStatusEl.textContent = status.replace("_", " ");
+      } else {
+        rainStatusEl.textContent = "--";
+      }
+
+      if (typeof adcValue === "number" && !isNaN(adcValue)) {
+        rainAdcEl.textContent = "ADC: " + adcValue;
+      } else if (typeof adcValue === "string" && adcValue.length > 0) {
+        rainAdcEl.textContent = "ADC: " + adcValue;
+      }
+
+      // reset classes
+      rainIconEl.classList.remove("dry", "light", "heavy");
+
+      if (status === "DRY") {
+        rainIconEl.classList.add("dry");
+      } else if (status === "LIGHT_RAIN") {
+        rainIconEl.classList.add("light");
+      } else if (status === "HEAVY_RAIN") {
+        rainIconEl.classList.add("heavy");
+      }
+    }
+
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
@@ -349,7 +502,15 @@
       console.log("MQTT connected");
 
       client.subscribe(
-        [topicTemp, topicHum, topicLevel, topicIndState, topicPress],
+        [
+          topicTemp,
+          topicHum,
+          topicLevel,
+          topicIndState,
+          topicPress,
+          topicRainStatus,
+          topicRainAdc
+        ],
         (err) => {
           if (err) {
             console.error("Subscribe error:", err);
@@ -397,10 +558,17 @@
           presEl.textContent = payload + " hPa";
         }
         setLastUpdate();
+      } else if (topic === topicRainStatus) {
+        updateRain(payload, lastRainAdcValue);
+        setLastUpdate();
+      } else if (topic === topicRainAdc) {
+        // store last ADC and update text
+        const adc = parseInt(payload, 10);
+        window.lastRainAdcValue = isNaN(adc) ? payload : adc;
+        updateRain(rainStatusEl.textContent.replace(" ", "_"), window.lastRainAdcValue);
+        setLastUpdate();
       }
     });
   </script>
 </body>
 </html>
-
-
