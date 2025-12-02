@@ -101,7 +101,7 @@
       border-radius: 8px;
     }
 
-    /* TOP LAYOUT: metrics left, rain right */
+    /* TOP LAYOUT: metrics left, rain + wind right */
     .top-row {
       display: flex;
       justify-content: space-between;
@@ -112,7 +112,7 @@
       flex: 1;
     }
     .top-right {
-      min-width: 180px;
+      min-width: 200px;
       text-align: left;
     }
     .top-right .label {
@@ -234,13 +234,81 @@
     .centered {
       text-align: center;
     }
+
+    /* ===== WIND ANIMATION ===== */
+    .wind-box-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9ca3af;
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+    .wind-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wind-icon {
+      width: 48px;
+      height: 40px;
+      position: relative;
+    }
+    .wind-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 4px;
+      border-radius: 999px;
+      background: #38bdf8;
+      opacity: 0.9;
+    }
+    .wind-line.l1 { top: 8px; }
+    .wind-line.l2 { top: 18px; }
+    .wind-line.l3 { top: 28px; }
+
+    @keyframes windSlow {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(10px); }
+    }
+    @keyframes windFast {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(16px); }
+    }
+    @keyframes windDanger {
+      0%   { transform: translateX(0); }
+      50%  { transform: translateX(20px); }
+      100% { transform: translateX(0); }
+    }
+
+    .wind-icon.normal .wind-line {
+      animation: windSlow 0.9s linear infinite;
+    }
+    .wind-icon.fast .wind-line {
+      animation: windFast 0.6s linear infinite;
+    }
+    .wind-icon.dangerous .wind-line {
+      background: #f97316;
+      box-shadow: 0 0 10px rgba(248,113,113,0.8);
+      animation: windDanger 0.45s linear infinite;
+    }
+
+    .wind-text-main {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .wind-text-level {
+      font-size: 11px;
+      margin-top: 2px;
+      color: #9ca3af;
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>GROUP 7 ESP32 WEATHER DASHBOARD</h1>
 
-    <!-- TOP: metrics left, rain right -->
+    <!-- TOP: metrics left, rain + wind right -->
     <div class="top-row">
       <div class="top-left">
         <div class="label">Temperature</div>
@@ -264,8 +332,9 @@
         <div id="threshold" class="value" style="font-size:16px;">--</div>
       </div>
 
-      <!-- RAIN TOP-RIGHT -->
+      <!-- RIGHT: Rain + Wind -->
       <div class="top-right">
+        <!-- Rain -->
         <div class="rain-box-title">Rain Status</div>
         <div class="rain-row">
           <div id="rain-icon" class="rain-icon">
@@ -277,6 +346,20 @@
           <div>
             <div id="rain-status" class="rain-text-main">--</div>
             <div id="rain-adc" class="rain-text-adc">ADC: --</div>
+          </div>
+        </div>
+
+        <!-- Wind (UNDER rain status) -->
+        <div class="wind-box-title">Wind Speed</div>
+        <div class="wind-row">
+          <div id="wind-icon" class="wind-icon">
+            <div class="wind-line l1"></div>
+            <div class="wind-line l2"></div>
+            <div class="wind-line l3"></div>
+          </div>
+          <div>
+            <div id="wind-speed" class="wind-text-main">-- mph</div>
+            <div id="wind-level" class="wind-text-level">--</div>
           </div>
         </div>
       </div>
@@ -325,6 +408,7 @@
     const topicPress      = "robota/esp32/pressure";
     const topicRainStatus = "robota/esp32/rain_status";
     const topicRainAdc    = "robota/esp32/rain_adc";
+    const topicWindMph    = "robota/esp32/wind_mph";
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
@@ -338,6 +422,9 @@
     const rainStatusEl      = document.getElementById("rain-status");
     const rainAdcEl         = document.getElementById("rain-adc");
     const rainIconEl        = document.getElementById("rain-icon");
+    const windSpeedEl       = document.getElementById("wind-speed");
+    const windLevelEl       = document.getElementById("wind-level");
+    const windIconEl        = document.getElementById("wind-icon");
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -481,7 +568,7 @@
       presChart.update();
     }
 
-    // update text + dot + threshold label
+    // update temp level
     function updateLevel(level) {
       levelTextEl.textContent = level;
 
@@ -523,7 +610,6 @@
         rainAdcEl.textContent = "ADC: " + adcValue;
       }
 
-      // reset classes
       rainIconEl.classList.remove("dry", "light", "heavy");
 
       if (status === "DRY") {
@@ -533,6 +619,42 @@
       } else if (status === "HEAVY_RAIN") {
         rainIconEl.classList.add("heavy");
       }
+    }
+
+    // ===== WIND UI UPDATE =====
+    function updateWind(mph) {
+      const speed = parseFloat(mph);
+      if (isNaN(speed)) {
+        windSpeedEl.textContent = "-- mph";
+        windLevelEl.textContent = "--";
+        windLevelEl.style.color = "#9ca3af";
+        windIconEl.classList.remove("normal", "fast", "dangerous");
+        return;
+      }
+
+      windSpeedEl.textContent = speed.toFixed(1) + " mph";
+
+      let levelText = "";
+      let color = "#9ca3af";
+
+      windIconEl.classList.remove("normal", "fast", "dangerous");
+
+      if (speed < 10) {
+        levelText = "NORMAL";
+        color = "#22c55e";
+        windIconEl.classList.add("normal");
+      } else if (speed < 25) {
+        levelText = "FAST";
+        color = "#eab308";
+        windIconEl.classList.add("fast");
+      } else {
+        levelText = "DANGEROUS";
+        color = "#ef4444";
+        windIconEl.classList.add("dangerous");
+      }
+
+      windLevelEl.textContent = levelText;
+      windLevelEl.style.color = color;
     }
 
     const client = mqtt.connect(host, options);
@@ -549,7 +671,8 @@
           topicIndState,
           topicPress,
           topicRainStatus,
-          topicRainAdc
+          topicRainAdc,
+          topicWindMph
         ],
         (err) => {
           if (err) {
@@ -570,6 +693,9 @@
       console.error("MQTT error:", err);
       setStatus("Error");
     });
+
+    // store last ADC so rain text and ADC stay in sync
+    window.lastRainAdcValue = "--";
 
     client.on("message", (topic, message) => {
       const payload = message.toString();
@@ -605,6 +731,9 @@
         const adc = parseInt(payload, 10);
         window.lastRainAdcValue = isNaN(adc) ? payload : adc;
         updateRain(rainStatusEl.textContent.replace(" ", "_"), window.lastRainAdcValue);
+        setLastUpdate();
+      } else if (topic === topicWindMph) {
+        updateWind(payload);
         setLastUpdate();
       }
     });
