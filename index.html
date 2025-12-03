@@ -303,35 +303,21 @@
       color: #9ca3af;
     }
 
-    /* ===== WIND DIRECTION ARROW ===== */
+    /* ===== WIND DIRECTION ARROW (no circle, lower) ===== */
     .wind-dir-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 4px;
-    }
-    .wind-dir-compass {
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      border: 2px solid #e5e7eb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      animation: compassGlow 1.2s ease-in-out alternate infinite;
+      gap: 10px;
+      margin-top: 10px;   /* lower it a bit from speed text */
     }
     .wind-arrow {
       width: 0;
       height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-bottom: 16px solid #fbbf24; /* arrow color */
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 24px solid #fbbf24; /* arrow color */
       transform-origin: 50% 90%;
       transition: transform 0.35s ease;
-    }
-    @keyframes compassGlow {
-      0%   { box-shadow: 0 0 0 rgba(56,189,248,0); }
-      100% { box-shadow: 0 0 10px rgba(56,189,248,0.6); }
     }
   </style>
 </head>
@@ -392,11 +378,9 @@
             <div id="wind-speed" class="wind-text-main">-- mph</div>
             <div id="wind-level" class="wind-text-level">--</div>
 
-            <!-- NEW: wind direction with arrow -->
+            <!-- wind direction with arrow only -->
             <div class="wind-dir-row">
-              <div class="wind-dir-compass">
-                <div id="wind-arrow" class="wind-arrow"></div>
-              </div>
+              <div id="wind-arrow" class="wind-arrow"></div>
               <div id="wind-dir-text" class="wind-text-level">--</div>
             </div>
           </div>
@@ -448,7 +432,7 @@
     const topicRainStatus = "robota/esp32/rain_status";
     const topicRainAdc    = "robota/esp32/rain_adc";
     const topicWindMph    = "robota/esp32/wind_mph";
-    const topicWindDir    = "robota/esp32/wind_dir";   // NEW
+    const topicWindDir    = "robota/esp32/wind_dir";
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
@@ -465,8 +449,8 @@
     const windSpeedEl       = document.getElementById("wind-speed");
     const windLevelEl       = document.getElementById("wind-level");
     const windIconEl        = document.getElementById("wind-icon");
-    const windDirTextEl     = document.getElementById("wind-dir-text"); // NEW
-    const windArrowEl       = document.getElementById("wind-arrow");    // NEW
+    const windDirTextEl     = document.getElementById("wind-dir-text");
+    const windArrowEl       = document.getElementById("wind-arrow");
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -723,7 +707,7 @@
         label = "WEST";
         angle = 270;
       } else {
-        label = c;  // unexpected value, just show raw
+        label = c;  // unexpected value, show raw
         angle = 0;
       }
 
