@@ -302,6 +302,37 @@
       margin-top: 2px;
       color: #9ca3af;
     }
+
+    /* ===== WIND DIRECTION ARROW ===== */
+    .wind-dir-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .wind-dir-compass {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 2px solid #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: compassGlow 1.2s ease-in-out alternate infinite;
+    }
+    .wind-arrow {
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 16px solid #fbbf24; /* arrow color */
+      transform-origin: 50% 90%;
+      transition: transform 0.35s ease;
+    }
+    @keyframes compassGlow {
+      0%   { box-shadow: 0 0 0 rgba(56,189,248,0); }
+      100% { box-shadow: 0 0 10px rgba(56,189,248,0.6); }
+    }
   </style>
 </head>
 <body>
@@ -360,6 +391,14 @@
           <div>
             <div id="wind-speed" class="wind-text-main">-- mph</div>
             <div id="wind-level" class="wind-text-level">--</div>
+
+            <!-- NEW: wind direction with arrow -->
+            <div class="wind-dir-row">
+              <div class="wind-dir-compass">
+                <div id="wind-arrow" class="wind-arrow"></div>
+              </div>
+              <div id="wind-dir-text" class="wind-text-level">--</div>
+            </div>
           </div>
         </div>
       </div>
@@ -409,6 +448,7 @@
     const topicRainStatus = "robota/esp32/rain_status";
     const topicRainAdc    = "robota/esp32/rain_adc";
     const topicWindMph    = "robota/esp32/wind_mph";
+    const topicWindDir    = "robota/esp32/wind_dir";   // NEW
 
     const statusEl          = document.getElementById("status");
     const tempEl            = document.getElementById("temp");
@@ -425,6 +465,8 @@
     const windSpeedEl       = document.getElementById("wind-speed");
     const windLevelEl       = document.getElementById("wind-level");
     const windIconEl        = document.getElementById("wind-icon");
+    const windDirTextEl     = document.getElementById("wind-dir-text"); // NEW
+    const windArrowEl       = document.getElementById("wind-arrow");    // NEW
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -657,6 +699,38 @@
       windLevelEl.style.color = color;
     }
 
+    // ===== WIND DIRECTION UI UPDATE =====
+    function updateWindDirection(code) {
+      if (!code) {
+        windDirTextEl.textContent = "--";
+        windArrowEl.style.transform = "rotate(0deg)";
+        return;
+      }
+      const c = code.trim().toUpperCase();
+      let label = "--";
+      let angle = 0;
+
+      if (c === "N") {
+        label = "NORTH";
+        angle = 0;
+      } else if (c === "E") {
+        label = "EAST";
+        angle = 90;
+      } else if (c === "S") {
+        label = "SOUTH";
+        angle = 180;
+      } else if (c === "W") {
+        label = "WEST";
+        angle = 270;
+      } else {
+        label = c;  // unexpected value, just show raw
+        angle = 0;
+      }
+
+      windDirTextEl.textContent = label;
+      windArrowEl.style.transform = `rotate(${angle}deg)`;
+    }
+
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
@@ -672,7 +746,8 @@
           topicPress,
           topicRainStatus,
           topicRainAdc,
-          topicWindMph
+          topicWindMph,
+          topicWindDir
         ],
         (err) => {
           if (err) {
@@ -734,6 +809,9 @@
         setLastUpdate();
       } else if (topic === topicWindMph) {
         updateWind(payload);
+        setLastUpdate();
+      } else if (topic === topicWindDir) {
+        updateWindDirection(payload);
         setLastUpdate();
       }
     });
