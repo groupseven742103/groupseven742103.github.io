@@ -316,6 +316,23 @@
         <canvas id="pressureChart" height="130"></canvas>
       </div>
 
+      <!-- Lux / Light Level -->
+      <div class="card">
+        <div>
+          <p class="card-title">Light Level</p>
+          <div class="card-row">
+            <div>
+              <div class="big-value">
+                <span id="lux-value">----</span><span class="unit"> lx</span>
+              </div>
+              <div id="lux-level" class="sub-label">--</div>
+            </div>
+            <div class="icon">💡</div>
+          </div>
+        </div>
+        <div class="sub-label" id="lux-note">BH1750 ambient light</div>
+      </div>
+
       <!-- Alerts -->
       <div class="card">
         <div>
@@ -369,7 +386,7 @@
           <div class="sub-label">Dashboard for GROUP 7 ESP32 Weather Station.</div>
         </div>
         <div class="sub-label">
-          Designed for Temperature, Humidity, Pressure, Rain, Wind Speed & Direction.
+          Designed for Temperature, Humidity, Pressure, Rain, Wind Speed & Direction, and Light Level.
         </div>
       </div>
     </div>
@@ -397,6 +414,7 @@
     const topicRainAdc    = "robota/esp32/rain_adc";
     const topicWindMph    = "robota/esp32/wind_mph";
     const topicWindDir    = "robota/esp32/wind_dir";
+    const topicLux        = "robota/esp32/lux";   // NEW: Lux topic
 
     // DOM elements
     const tempEl       = document.getElementById("temp-value");
@@ -416,6 +434,10 @@
     const mqttStatusEl = document.getElementById("mqtt-status");
     const lastUpdateEl = document.getElementById("last-update");
     const ledStateEl   = document.getElementById("led-state");
+
+    // Lux elements
+    const luxEl       = document.getElementById("lux-value");
+    const luxLevelEl  = document.getElementById("lux-level");
 
     // ===== Utility =====
     function setLastUpdate() {
@@ -583,6 +605,40 @@
       windArrowEl.style.transform = `rotate(${angle}deg)`;
     }
 
+    // ===== Lux / Light level =====
+    function updateLux(luxStr) {
+      const lux = parseFloat(luxStr);
+      if (isNaN(lux)) {
+        luxEl.textContent = "--";
+        luxLevelEl.textContent = "--";
+        luxLevelEl.style.color = "#9ca3af";
+        return;
+      }
+
+      luxEl.textContent = lux.toFixed(0);
+
+      let levelText = "";
+      let color = "#9ca3af";
+
+      // Simple ranges; adjust as you like
+      if (lux < 100) {
+        levelText = "DARK";
+        color = "#9ca3af";
+      } else if (lux < 1000) {
+        levelText = "INDOOR";
+        color = "#22c55e";
+      } else if (lux < 10000) {
+        levelText = "CLOUDY";
+        color = "#eab308";
+      } else {
+        levelText = "SUNNY";
+        color = "#f97316";
+      }
+
+      luxLevelEl.textContent = levelText;
+      luxLevelEl.style.color = color;
+    }
+
     // ===== LED control =====
     function setIndicator(on) {
       if (!client.connected) return;
@@ -607,7 +663,8 @@
         topicRainStatus,
         topicRainAdc,
         topicWindMph,
-        topicWindDir
+        topicWindDir,
+        topicLux           // NEW: subscribe to lux
       ], (err) => {
         if (err) {
           setMQTTStatus("Subscribe error", false);
@@ -666,6 +723,9 @@
         setLastUpdate();
       } else if (topic === topicWindDir) {
         updateWindDirection(payload);
+        setLastUpdate();
+      } else if (topic === topicLux) {
+        updateLux(payload);
         setLastUpdate();
       }
     });
