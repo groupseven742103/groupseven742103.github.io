@@ -6,7 +6,7 @@
 
   <!-- MQTT client -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <!-- Chart.js for graphs -->
+  <!-- Chart.js for pressure graph -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -19,8 +19,6 @@
       --accent-yellow: #facc15;
       --accent-green: #22c55e;
       --accent-red: #ef4444;
-      --accent-orange: #f97316;
-      --accent-purple: #a855f7;
     }
 
     * {
@@ -66,12 +64,6 @@
       flex-direction: column;
       justify-content: space-between;
       min-height: 120px;
-      transition: opacity 0.25s ease, filter 0.25s ease;
-    }
-
-    .card.offline {
-      opacity: 0.45;
-      filter: grayscale(0.4);
     }
 
     .card-title {
@@ -140,7 +132,7 @@
       color: var(--accent-blue);
     }
 
-    /* Wind direction arrow */
+    /* Wind direction arrow (no circle) */
     .wind-dir-row {
       display: flex;
       align-items: center;
@@ -163,18 +155,11 @@
       color: var(--text-muted);
     }
 
-    /* Main pressure chart */
+    /* Pressure chart */
     #pressureChart {
       margin-top: 8px;
       background: #020617;
       border-radius: 10px;
-    }
-
-    /* Mini sparkline charts */
-    .mini-chart {
-      width: 100%;
-      margin-top: 8px;
-      height: 40px;
     }
 
     /* LED buttons */
@@ -235,12 +220,6 @@
       font-size: 13px;
     }
 
-    .meta-line {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin: 2px 0;
-    }
-
     @media (max-width: 900px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -259,7 +238,7 @@
     <h1>GROUP 7 ESP32 WEATHER DASHBOARD</h1>
 
     <div class="grid">
-      <!-- 1: Temperature -->
+      <!-- Temperature -->
       <div class="card">
         <div>
           <p class="card-title">Temperature</p>
@@ -272,41 +251,11 @@
             </div>
             <div class="icon">🌡️</div>
           </div>
-          <canvas id="tempChart" class="mini-chart"></canvas>
         </div>
         <div class="sub-label" id="temp-threshold">Threshold: &lt; 28 / 28–32 / &gt; 32 °C</div>
       </div>
 
-      <!-- 2: Humidity -->
-      <div class="card">
-        <div>
-          <p class="card-title">Humidity</p>
-          <div class="card-row">
-            <div>
-              <div class="big-value">
-                <span id="hum-value">--.-</span><span class="unit">%</span>
-              </div>
-              <div id="hum-level" class="sub-label">--</div>
-            </div>
-            <div class="icon">💧</div>
-          </div>
-          <canvas id="humChart" class="mini-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- 3: LED Indicator control (moved beside temp/hum) -->
-      <div class="card">
-        <div>
-          <p class="card-title">LED Indicator</p>
-          <div class="big-value" id="led-state" style="font-size:22px;">OFF</div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-on" onclick="setIndicator(true)">Turn ON</button>
-          <button class="btn btn-off" onclick="setIndicator(false)">Turn OFF</button>
-        </div>
-      </div>
-
-      <!-- 4: Rain Status -->
+      <!-- Rain Status -->
       <div class="card">
         <div>
           <p class="card-title">Rain Status</p>
@@ -320,7 +269,22 @@
         </div>
       </div>
 
-      <!-- 5: Wind Speed + Direction -->
+      <!-- Humidity -->
+      <div class="card">
+        <div>
+          <p class="card-title">Humidity</p>
+          <div class="card-row">
+            <div>
+              <div class="big-value">
+                <span id="hum-value">--.-</span><span class="unit">%</span>
+              </div>
+            </div>
+            <div class="icon">💧</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind Speed + Direction -->
       <div class="card">
         <div>
           <p class="card-title">Wind</p>
@@ -338,11 +302,10 @@
             <div id="wind-arrow" class="wind-arrow"></div>
             <div id="wind-dir-text" class="wind-dir-text">--</div>
           </div>
-          <canvas id="windChart" class="mini-chart"></canvas>
         </div>
       </div>
 
-      <!-- 6: Pressure with main graph -->
+      <!-- Pressure with graph -->
       <div class="card">
         <div>
           <p class="card-title">Pressure</p>
@@ -353,7 +316,7 @@
         <canvas id="pressureChart" height="130"></canvas>
       </div>
 
-      <!-- 7: Light Level (BH1750) -->
+      <!-- Lux / Light Level -->
       <div class="card">
         <div>
           <p class="card-title">Light Level</p>
@@ -364,14 +327,13 @@
               </div>
               <div id="lux-level" class="sub-label">--</div>
             </div>
-            <div class="icon">🌞</div>
+            <div class="icon">💡</div>
           </div>
-          <canvas id="luxChart" class="mini-chart"></canvas>
         </div>
         <div class="sub-label" id="lux-note">BH1750 ambient light</div>
       </div>
 
-      <!-- 8: Alerts -->
+      <!-- Alerts -->
       <div class="card">
         <div>
           <p class="card-title">Alerts</p>
@@ -381,7 +343,7 @@
         </div>
       </div>
 
-      <!-- 9: ESP32 / MQTT Status -->
+      <!-- ESP32 / MQTT Status -->
       <div class="card">
         <div>
           <p class="card-title">ESP32 Status</p>
@@ -405,28 +367,32 @@
         </div>
       </div>
 
-      <!-- 10: Device info / metadata -->
+      <!-- LED Indicator control -->
+      <div class="card">
+        <div>
+          <p class="card-title">LED Indicator</p>
+          <div class="big-value" id="led-state" style="font-size:22px;">OFF</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-on" onclick="setIndicator(true)">Turn ON</button>
+          <button class="btn btn-off" onclick="setIndicator(false)">Turn OFF</button>
+        </div>
+      </div>
+
+      <!-- Device info / placeholder -->
       <div class="card">
         <div>
           <p class="card-title">Device Info</p>
-          <div class="meta-line">Name: <span id="dev-name">--</span></div>
-          <div class="meta-line">Firmware: <span id="dev-fw">--</span></div>
-          <div class="meta-line">Location: <span id="dev-location">--</span></div>
-          <div class="meta-line">Uptime: <span id="dev-uptime">00:00:00</span></div>
+          <div class="sub-label">Dashboard for GROUP 7 ESP32 Weather Station.</div>
         </div>
-        <div class="sub-label" style="margin-top:6px;">
-          GROUP 7 ESP32 Weather Station with Temperature, Humidity, Pressure, Rain, Wind, and Light monitoring.
+        <div class="sub-label">
+          Designed for Temperature, Humidity, Pressure, Rain, Wind Speed & Direction, and Light Level.
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // ===== Device metadata (edit values here) =====
-    const DEVICE_NAME     = "ESP32 Weather Node #1";
-    const FIRMWARE_VER    = "v1.0.0";
-    const DEVICE_LOCATION = "Outdoor - Roof";
-
     // ===== HiveMQ Cloud WebSocket settings =====
     const host = "wss://2a5578d6282f481d8c6bf51d434926fa.s1.eu.hivemq.cloud:8884/mqtt";
     const options = {
@@ -448,14 +414,13 @@
     const topicRainAdc    = "robota/esp32/rain_adc";
     const topicWindMph    = "robota/esp32/wind_mph";
     const topicWindDir    = "robota/esp32/wind_dir";
-    const topicLux        = "robota/esp32/lux";
+    const topicLux        = "robota/esp32/lux";   // NEW: Lux topic
 
     // DOM elements
     const tempEl       = document.getElementById("temp-value");
     const tempLevelEl  = document.getElementById("temp-level");
     const tempThreshEl = document.getElementById("temp-threshold");
     const humEl        = document.getElementById("hum-value");
-    const humLevelEl   = document.getElementById("hum-level");
     const presEl       = document.getElementById("pres-value");
     const rainStatusEl = document.getElementById("rain-status");
     const rainAdcEl    = document.getElementById("rain-adc");
@@ -470,22 +435,9 @@
     const lastUpdateEl = document.getElementById("last-update");
     const ledStateEl   = document.getElementById("led-state");
 
+    // Lux elements
     const luxEl       = document.getElementById("lux-value");
     const luxLevelEl  = document.getElementById("lux-level");
-
-    const devNameEl     = document.getElementById("dev-name");
-    const devFwEl       = document.getElementById("dev-fw");
-    const devLocationEl = document.getElementById("dev-location");
-    const devUptimeEl   = document.getElementById("dev-uptime");
-
-    const allCards = document.querySelectorAll(".card");
-
-    // Last sensor values for alerts
-    let lastTemp       = null;
-    let lastHum        = null;
-    let lastPres       = null;
-    let lastWindMph    = null;
-    let lastRainStatus = null;
 
     // ===== Utility =====
     function setLastUpdate() {
@@ -499,52 +451,7 @@
       espStatusEl.style.color  = ok ? "#22c55e" : "#ef4444";
     }
 
-    function setOnlineState(online) {
-      allCards.forEach(card => {
-        if (online) card.classList.remove("offline");
-        else card.classList.add("offline");
-      });
-
-      if (!online) {
-        // Clear values to loading / offline placeholders
-        tempEl.textContent       = "--.-";
-        tempLevelEl.textContent  = "--";
-        humEl.textContent        = "--.-";
-        humLevelEl.textContent   = "--";
-        presEl.textContent       = "----.-";
-        rainStatusEl.textContent = "--";
-        rainAdcEl.textContent    = "ADC: --";
-        windSpeedEl.textContent  = "--.-";
-        windLevelEl.textContent  = "--";
-        windDirTextEl.textContent= "--";
-        luxEl.textContent        = "----";
-        luxLevelEl.textContent   = "--";
-        ledStateEl.textContent   = "OFF";
-
-        lastTemp = lastHum = lastPres = lastWindMph = null;
-        lastRainStatus = null;
-        recomputeAlerts();
-      }
-    }
-
-    // ===== Device metadata init =====
-    function initDeviceMeta() {
-      devNameEl.textContent     = DEVICE_NAME;
-      devFwEl.textContent       = FIRMWARE_VER;
-      devLocationEl.textContent = DEVICE_LOCATION;
-
-      const start = Date.now();
-      setInterval(() => {
-        const diff = Date.now() - start;
-        const totalSec = Math.floor(diff / 1000);
-        const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
-        const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
-        const s = String(totalSec % 60).padStart(2, "0");
-        devUptimeEl.textContent = `${h}:${m}:${s}`;
-      }, 1000);
-    }
-
-    // ===== Charts: pressure main + mini sparklines =====
+    // ===== Pressure chart =====
     const presLabels = [];
     const presData   = [];
     const maxPoints  = 25;
@@ -595,115 +502,43 @@
       pressureChart.update();
     }
 
-    // Mini sparkline helpers
-    const sparkMaxPoints = 40;
-
-    function createSparkline(ctx, color) {
-      return new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{
-            data: [],
-            borderColor: color,
-            backgroundColor: "rgba(0,0,0,0)",
-            borderWidth: 1.5,
-            tension: 0.35,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { display: false },
-            y: { display: false }
-          }
-        }
-      });
-    }
-
-    function addSparkPoint(chart, labelsArr, dataArr, value) {
-      if (isNaN(value)) return;
-      labelsArr.push("");
-      dataArr.push(value);
-      if (labelsArr.length > sparkMaxPoints) {
-        labelsArr.shift();
-        dataArr.shift();
-      }
-      chart.update();
-    }
-
-    // Create mini charts
-    const tempCtx = document.getElementById("tempChart").getContext("2d");
-    const humCtx  = document.getElementById("humChart").getContext("2d");
-    const windCtx = document.getElementById("windChart").getContext("2d");
-    const luxCtx  = document.getElementById("luxChart").getContext("2d");
-
-    const tempSparkLabels = [], tempSparkData = [];
-    const humSparkLabels  = [], humSparkData  = [];
-    const windSparkLabels = [], windSparkData = [];
-    const luxSparkLabels  = [], luxSparkData  = [];
-
-    const tempSparkChart = createSparkline(tempCtx, "#38bdf8");
-    const humSparkChart  = createSparkline(humCtx,  "#22c55e");
-    const windSparkChart = createSparkline(windCtx, "#f97316");
-    const luxSparkChart  = createSparkline(luxCtx,  "#a855f7");
-
-    // ===== Temperature level & color states =====
+    // ===== Temperature level & alert logic =====
     function updateTempLevel(level) {
       let txt = level;
       let color = "#9ca3af";
       let thresholdText = "Threshold: < 28 / 28–32 / > 32 °C";
 
       if (level === "COOL") {
-        color = "#38bdf8"; // blue
+        color = "#22c55e";
         txt   = "COOL";
-        thresholdText = "Threshold: < 28 °C (cool)";
+        thresholdText = "Threshold: < 28 °C";
       } else if (level === "WARM") {
-        color = "#facc15"; // yellow
+        color = "#eab308";
         txt   = "WARM";
-        thresholdText = "Threshold: 28 – 32 °C (warm)";
+        thresholdText = "Threshold: 28 – 32 °C";
       } else if (level === "HOT") {
-        color = "#ef4444"; // red
+        color = "#ef4444";
         txt   = "HOT";
-        thresholdText = "Threshold: > 32 °C (hot)";
+        thresholdText = "Threshold: > 32 °C";
       }
 
       tempLevelEl.textContent = txt;
       tempLevelEl.style.color = color;
       tempThreshEl.textContent = thresholdText;
 
-      recomputeAlerts();
-    }
-
-    // ===== Humidity level & color states =====
-    function updateHumidityLevel(hVal) {
-      if (isNaN(hVal)) {
-        humLevelEl.textContent = "--";
-        humLevelEl.style.color = "#9ca3af";
-        return;
-      }
-
-      let text = "";
-      let color = "#9ca3af";
-
-      if (hVal < 40) {
-        text = "DRY";
-        color = "#facc15"; // yellow
-      } else if (hVal <= 60) {
-        text = "COMFORT";
-        color = "#22c55e"; // green
+      // alerts
+      alertBoxEl.innerHTML = "";
+      if (level === "HOT") {
+        const div = document.createElement("div");
+        div.className = "alert-item";
+        div.innerHTML = `<span class="alert-icon">⚠️</span><span>High Temperature Alert</span>`;
+        alertBoxEl.appendChild(div);
       } else {
-        text = "HUMID";
-        color = "#38bdf8"; // blue
+        const div = document.createElement("div");
+        div.className = "no-alerts";
+        div.textContent = "No active alerts";
+        alertBoxEl.appendChild(div);
       }
-
-      humLevelEl.textContent = text;
-      humLevelEl.style.color = color;
-      recomputeAlerts();
     }
 
     // ===== Rain UI =====
@@ -717,9 +552,6 @@
       if (adc !== undefined) {
         rainAdcEl.textContent = "ADC: " + adc;
       }
-
-      lastRainStatus = status || null;
-      recomputeAlerts();
     }
 
     // ===== Wind speed + level =====
@@ -729,32 +561,27 @@
         windSpeedEl.textContent = "--.-";
         windLevelEl.textContent = "--";
         windLevelEl.style.color = "#9ca3af";
-        lastWindMph = null;
-        recomputeAlerts();
         return;
       }
 
       windSpeedEl.textContent = speed.toFixed(1);
-      lastWindMph = speed;
 
       let levelText = "";
       let color = "#9ca3af";
 
       if (speed < 10) {
         levelText = "NORMAL";
-        color = "#22c55e"; // green
-      } else if (speed < 20) {
-        levelText = "MODERATE";
-        color = "#facc15"; // yellow
+        color = "#22c55e";
+      } else if (speed < 25) {
+        levelText = "FAST";
+        color = "#eab308";
       } else {
-        levelText = "STRONG";
-        color = "#ef4444"; // red
+        levelText = "DANGEROUS";
+        color = "#ef4444";
       }
 
       windLevelEl.textContent = levelText;
       windLevelEl.style.color = color;
-
-      recomputeAlerts();
     }
 
     // ===== Wind direction arrow =====
@@ -770,9 +597,9 @@
       let angle = 0;
 
       if (c === "N") { label = "NORTH"; angle = 0; }
-      else if (c === "E") { label = "EAST";  angle = 90; }
+      else if (c === "E") { label = "EAST"; angle = 90; }
       else if (c === "S") { label = "SOUTH"; angle = 180; }
-      else if (c === "W") { label = "WEST";  angle = 270; }
+      else if (c === "W") { label = "WEST"; angle = 270; }
 
       windDirTextEl.textContent = label;
       windArrowEl.style.transform = `rotate(${angle}deg)`;
@@ -793,60 +620,23 @@
       let levelText = "";
       let color = "#9ca3af";
 
+      // Simple ranges; adjust as you like
       if (lux < 100) {
         levelText = "DARK";
         color = "#9ca3af";
-      } else if (lux < 500) {
-        levelText = "DIM";
+      } else if (lux < 1000) {
+        levelText = "INDOOR";
         color = "#22c55e";
-      } else if (lux < 5000) {
-        levelText = "BRIGHT";
-        color = "#facc15";
+      } else if (lux < 10000) {
+        levelText = "CLOUDY";
+        color = "#eab308";
       } else {
-        levelText = "VERY BRIGHT";
+        levelText = "SUNNY";
         color = "#f97316";
       }
 
       luxLevelEl.textContent = levelText;
       luxLevelEl.style.color = color;
-    }
-
-    // ===== Alerts logic (high temp, heavy rain, low pressure, high wind) =====
-    function recomputeAlerts() {
-      alertBoxEl.innerHTML = "";
-      const alerts = [];
-
-      if (lastTemp !== null && lastTemp > 32) {
-        alerts.push({ icon: "🔥", text: "High temperature above 32 °C" });
-      }
-
-      if (lastPres !== null && lastPres < 1000) {
-        alerts.push({ icon: "🌪️", text: "Low pressure (possible storm)" });
-      }
-
-      if (lastRainStatus && lastRainStatus.toUpperCase().includes("HEAVY")) {
-        alerts.push({ icon: "🌧️", text: "Heavy rain detected" });
-      } else if (lastRainStatus && lastRainStatus.toUpperCase().includes("RAIN")) {
-        alerts.push({ icon: "☔", text: "Rain detected" });
-      }
-
-      if (lastWindMph !== null && lastWindMph > 20) {
-        alerts.push({ icon: "💨", text: "High wind speed above 20 mph" });
-      }
-
-      if (alerts.length === 0) {
-        const div = document.createElement("div");
-        div.className = "no-alerts";
-        div.textContent = "No active alerts";
-        alertBoxEl.appendChild(div);
-      } else {
-        alerts.forEach(a => {
-          const div = document.createElement("div");
-          div.className = "alert-item";
-          div.innerHTML = `<span class="alert-icon">${a.icon}</span><span>${a.text}</span>`;
-          alertBoxEl.appendChild(div);
-        });
-      }
     }
 
     // ===== LED control =====
@@ -860,13 +650,9 @@
     // ===== MQTT client =====
     const client = mqtt.connect(host, options);
 
-    // keep last rain ADC so we can sync
-    let lastRainAdcValue = "--";
-
     client.on("connect", () => {
       wifiStatusEl.textContent = "Connected";
       setMQTTStatus("Connected", true);
-      setOnlineState(true);
 
       client.subscribe([
         topicTemp,
@@ -878,7 +664,7 @@
         topicRainAdc,
         topicWindMph,
         topicWindDir,
-        topicLux
+        topicLux           // NEW: subscribe to lux
       ], (err) => {
         if (err) {
           setMQTTStatus("Subscribe error", false);
@@ -889,22 +675,15 @@
 
     client.on("reconnect", () => {
       setMQTTStatus("Reconnecting…", false);
-      wifiStatusEl.textContent = "Reconnecting…";
-      setOnlineState(false);
     });
 
     client.on("error", (err) => {
       console.error("MQTT error:", err);
       setMQTTStatus("Error", false);
-      wifiStatusEl.textContent = "Disconnected";
-      setOnlineState(false);
     });
 
-    client.on("close", () => {
-      setMQTTStatus("Disconnected", false);
-      wifiStatusEl.textContent = "Disconnected";
-      setOnlineState(false);
-    });
+    // keep last rain ADC so we can sync
+    let lastRainAdcValue = "--";
 
     client.on("message", (topic, message) => {
       const payload = message.toString();
@@ -912,23 +691,9 @@
 
       if (topic === topicTemp) {
         tempEl.textContent = payload;
-        const tVal = parseFloat(payload);
-        if (!isNaN(tVal)) {
-          lastTemp = tVal;
-          addSparkPoint(tempSparkChart, tempSparkLabels, tempSparkData, tVal);
-        }
         setLastUpdate();
-        recomputeAlerts();
       } else if (topic === topicHum) {
         humEl.textContent = payload;
-        const hVal = parseFloat(payload);
-        if (!isNaN(hVal)) {
-          lastHum = hVal;
-          updateHumidityLevel(hVal);
-          addSparkPoint(humSparkChart, humSparkLabels, humSparkData, hVal);
-        } else {
-          updateHumidityLevel(NaN);
-        }
         setLastUpdate();
       } else if (topic === topicLevel) {
         updateTempLevel(payload.trim());
@@ -940,46 +705,30 @@
         const p = parseFloat(payload);
         if (!isNaN(p)) {
           presEl.textContent = p.toFixed(1);
-          lastPres = p;
           addPressurePoint(p);
         } else {
           presEl.textContent = payload;
-          lastPres = null;
         }
         setLastUpdate();
-        recomputeAlerts();
       } else if (topic === topicRainStatus) {
-        lastRainStatus = payload;
         updateRain(payload, lastRainAdcValue);
         setLastUpdate();
       } else if (topic === topicRainAdc) {
         const adc = parseInt(payload, 10);
         lastRainAdcValue = isNaN(adc) ? payload : adc;
-        updateRain(lastRainStatus, lastRainAdcValue);
+        updateRain(rainStatusEl.textContent.replace(" ", "_"), lastRainAdcValue);
         setLastUpdate();
       } else if (topic === topicWindMph) {
         updateWindSpeed(payload);
-        const w = parseFloat(payload);
-        if (!isNaN(w)) {
-          addSparkPoint(windSparkChart, windSparkLabels, windSparkData, w);
-        }
         setLastUpdate();
       } else if (topic === topicWindDir) {
         updateWindDirection(payload);
         setLastUpdate();
       } else if (topic === topicLux) {
         updateLux(payload);
-        const lx = parseFloat(payload);
-        if (!isNaN(lx)) {
-          addSparkPoint(luxSparkChart, luxSparkLabels, luxSparkData, lx);
-        }
         setLastUpdate();
       }
     });
-
-    // Init on load
-    initDeviceMeta();
-    setOnlineState(false); // start as "loading / offline"
   </script>
 </body>
 </html>
