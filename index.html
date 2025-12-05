@@ -34,7 +34,6 @@
       color: var(--text-main);
       margin: 0;
       min-height: 100vh;
-      /* removed flex centering so content starts at top and scrolls normally */
     }
 
     .container {
@@ -57,15 +56,17 @@
       gap: 16px;
     }
 
+    /* FIXED CARD LAYOUT */
     .card {
       background: var(--bg-card);
       border-radius: 18px;
-      padding: 16px 18px; /* slightly tighter */
+      padding: 12px 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.45);
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      min-height: 110px;
+      justify-content: flex-start; /* pack content sa taas */
+      gap: 8px;                   /* konting pagitan ng sections */
+      min-height: auto;           /* height = content lang */
       transition: opacity 0.25s ease, filter 0.25s ease;
     }
 
@@ -163,18 +164,19 @@
       color: var(--text-muted);
     }
 
-    /* Main pressure chart */
+    /* Main pressure chart – pinababa height */
     #pressureChart {
-      margin-top: 8px;
+      margin-top: 6px;
       background: #020617;
       border-radius: 10px;
+      height: 90px;
     }
 
-    /* Mini sparkline charts */
+    /* Mini sparkline charts – mas mababa */
     .mini-chart {
       width: 100%;
-      margin-top: 6px;
-      height: 38px;
+      margin-top: 4px;
+      height: 30px;
     }
 
     /* LED buttons */
@@ -294,7 +296,7 @@
         </div>
       </div>
 
-      <!-- 3: LED Indicator control (moved beside temp/hum) -->
+      <!-- 3: LED Indicator control -->
       <div class="card">
         <div>
           <p class="card-title">LED Indicator</p>
@@ -350,7 +352,7 @@
             <span id="pres-value">----.-</span><span class="unit">hPa</span>
           </div>
         </div>
-        <canvas id="pressureChart" height="130"></canvas>
+        <canvas id="pressureChart"></canvas>
       </div>
 
       <!-- 7: Light Level (BH1750) -->
@@ -811,7 +813,7 @@
       luxLevelEl.style.color = color;
     }
 
-    // ===== Alerts logic (high temp, heavy rain, low pressure, high wind) =====
+    // ===== Alerts logic =====
     function recomputeAlerts() {
       alertBoxEl.innerHTML = "";
       const alerts = [];
@@ -855,12 +857,11 @@
       const msg = on ? "ON" : "OFF";
       client.publish(topicIndCmd, msg);
     }
-    window.setIndicator = setIndicator; // expose to buttons
+    window.setIndicator = setIndicator;
 
     // ===== MQTT client =====
     const client = mqtt.connect(host, options);
 
-    // keep last rain ADC so we can sync
     let lastRainAdcValue = "--";
 
     client.on("connect", () => {
@@ -979,7 +980,7 @@
 
     // Init on load
     initDeviceMeta();
-    setOnlineState(false); // start as "loading / offline"
+    setOnlineState(false);
   </script>
 </body>
 </html>
