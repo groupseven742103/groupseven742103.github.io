@@ -43,13 +43,12 @@
       width: 100%;
       max-width: 980px;
       padding: 24px;
-      background: transparent;
     }
 
     h1 {
       margin: 0 0 20px 0;
       text-align: left;
-      font-size: clamp(18px, 3vw, 22px);
+      font-size: 22px;
       letter-spacing: 1px;
     }
 
@@ -84,13 +83,12 @@
     }
 
     .big-value {
-      font-size: clamp(22px, 4vw, 30px);
+      font-size: 30px;
       font-weight: 700;
-      word-wrap: break-word;
     }
 
     .unit {
-      font-size: 14px;
+      font-size: 16px;
       margin-left: 4px;
     }
 
@@ -228,7 +226,7 @@
       font-size: 13px;
     }
 
-    /* Tablet */
+    /* Tablet: 2 columns, normal scroll */
     @media (max-width: 900px) {
       body {
         align-items: flex-start;
@@ -238,49 +236,51 @@
         padding: 16px;
       }
 
+      h1 {
+        text-align: center;
+      }
+
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-
-      h1 {
-        text-align: center;
-        margin-bottom: 16px;
-      }
     }
 
-    /* Mobile */
+    /* Phone: one card per “screen”, vertical snap scroll */
     @media (max-width: 620px) {
       body {
-        padding: 12px;
+        display: block;
+        padding: 0;
+        scroll-snap-type: y mandatory;
+        overflow-y: auto;
       }
 
       .container {
-        padding: 12px;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .card {
-        padding: 14px 16px;
-        min-height: auto;
-      }
-
-      .card-row {
-        align-items: flex-start;
-      }
-
-      .big-value {
-        font-size: clamp(20px, 6vw, 26px);
-      }
-
-      .unit {
-        font-size: 13px;
+        max-width: 100%;
+        padding: 16px 12px 32px;
       }
 
       h1 {
         font-size: 18px;
+        text-align: center;
+        margin-bottom: 16px;
+      }
+
+      .grid {
+        display: block;
+      }
+
+      .card {
+        margin-bottom: 20px;
+        min-height: calc(100vh - 120px); /* almost full screen */
+        scroll-snap-align: start;
+      }
+
+      .big-value {
+        font-size: 26px;
+      }
+
+      .unit {
+        font-size: 14px;
       }
     }
   </style>
@@ -466,7 +466,7 @@
     const topicRainAdc    = "robota/esp32/rain_adc";
     const topicWindMph    = "robota/esp32/wind_mph";
     const topicWindDir    = "robota/esp32/wind_dir";
-    const topicLux        = "robota/esp32/lux";   // Lux topic
+    const topicLux        = "robota/esp32/lux";
 
     // DOM elements
     const tempEl       = document.getElementById("temp-value");
@@ -487,11 +487,9 @@
     const lastUpdateEl = document.getElementById("last-update");
     const ledStateEl   = document.getElementById("led-state");
 
-    // Lux elements
     const luxEl       = document.getElementById("lux-value");
     const luxLevelEl  = document.getElementById("lux-level");
 
-    // ===== Utility =====
     function setLastUpdate() {
       const now = new Date();
       lastUpdateEl.textContent = now.toLocaleTimeString();
@@ -503,7 +501,7 @@
       espStatusEl.style.color  = ok ? "#22c55e" : "#ef4444";
     }
 
-    // ===== Pressure chart =====
+    // Pressure chart
     const presLabels = [];
     const presData   = [];
     const maxPoints  = 25;
@@ -554,7 +552,7 @@
       pressureChart.update();
     }
 
-    // ===== Temperature level & alert logic =====
+    // Temperature level & alert logic
     function updateTempLevel(level) {
       let txt = level;
       let color = "#9ca3af";
@@ -578,7 +576,6 @@
       tempLevelEl.style.color = color;
       tempThreshEl.textContent = thresholdText;
 
-      // alerts
       alertBoxEl.innerHTML = "";
       if (level === "HOT") {
         const div = document.createElement("div");
@@ -593,7 +590,7 @@
       }
     }
 
-    // ===== Rain UI =====
+    // Rain UI
     function updateRain(status, adc) {
       if (status) {
         rainStatusEl.textContent = status.replace("_", " ");
@@ -606,7 +603,7 @@
       }
     }
 
-    // ===== Wind speed + level =====
+    // Wind speed + level
     function updateWindSpeed(mphStr) {
       const speed = parseFloat(mphStr);
       if (isNaN(speed)) {
@@ -636,7 +633,7 @@
       windLevelEl.style.color = color;
     }
 
-    // ===== Wind direction arrow =====
+    // Wind direction
     function updateWindDirection(code) {
       if (!code) {
         windDirTextEl.textContent = "--";
@@ -657,7 +654,7 @@
       windArrowEl.style.transform = `rotate(${angle}deg)`;
     }
 
-    // ===== Lux / Light level =====
+    // Lux / Light level
     function updateLux(luxStr) {
       const lux = parseFloat(luxStr);
       if (isNaN(lux)) {
@@ -672,7 +669,6 @@
       let levelText = "";
       let color = "#9ca3af";
 
-      // Simple ranges; adjust as you like
       if (lux < 100) {
         levelText = "DARK";
         color = "#9ca3af";
@@ -691,15 +687,15 @@
       luxLevelEl.style.color = color;
     }
 
-    // ===== LED control =====
+    // LED control
     function setIndicator(on) {
       if (!client.connected) return;
       const msg = on ? "ON" : "OFF";
       client.publish(topicIndCmd, msg);
     }
-    window.setIndicator = setIndicator; // expose to buttons
+    window.setIndicator = setIndicator;
 
-    // ===== MQTT client =====
+    // MQTT client
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
@@ -716,7 +712,7 @@
         topicRainAdc,
         topicWindMph,
         topicWindDir,
-        topicLux           // subscribe to lux
+        topicLux
       ], (err) => {
         if (err) {
           setMQTTStatus("Subscribe error", false);
@@ -734,7 +730,6 @@
       setMQTTStatus("Error", false);
     });
 
-    // keep last rain ADC so we can sync
     let lastRainAdcValue = "--";
 
     client.on("message", (topic, message) => {
