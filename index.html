@@ -7,7 +7,7 @@
 
   <!-- MQTT client -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <!-- Chart.js for pressure graph -->
+  <!-- Chart.js for graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -113,16 +113,6 @@
       margin-right: 4px;
     }
 
-    .status-ok {
-      color: var(--accent-green);
-      font-weight: 600;
-    }
-
-    .status-bad {
-      color: var(--accent-red);
-      font-weight: 600;
-    }
-
     /* Rain small icon */
     .rain-icon {
       font-size: 30px;
@@ -135,7 +125,7 @@
       color: var(--accent-blue);
     }
 
-    /* Wind direction arrow (no circle) */
+    /* Wind direction arrow */
     .wind-dir-row {
       display: flex;
       align-items: center;
@@ -163,6 +153,14 @@
       margin-top: 8px;
       background: #020617;
       border-radius: 10px;
+      width: 100%;
+    }
+
+    /* Small sparkline charts */
+    .sparkline {
+      margin-top: 8px;
+      background: #020617;
+      border-radius: 8px;
       width: 100%;
     }
 
@@ -226,7 +224,21 @@
       font-size: 13px;
     }
 
-    /* Tablet: 2 columns, normal scroll */
+    /* Offline visual state */
+    body.offline .card {
+      opacity: 0.6;
+    }
+
+    body.offline .big-value,
+    body.offline .sub-label {
+      color: #6b7280;
+    }
+
+    body.offline #esp-status {
+      color: var(--accent-red) !important;
+    }
+
+    /* Tablet: 2 columns */
     @media (max-width: 900px) {
       body {
         align-items: flex-start;
@@ -245,42 +257,42 @@
       }
     }
 
-    /* Phone: one card per “screen”, vertical snap scroll */
-@media (max-width: 620px) {
-  body {
-    display: block;
-    padding: 0;
-    scroll-snap-type: y mandatory;
-    overflow-y: auto;
-  }
+    /* Phone: one card per screen, vertical snap scroll */
+    @media (max-width: 620px) {
+      body {
+        display: block;
+        padding: 0;
+        scroll-snap-type: y mandatory;
+        overflow-y: auto;
+      }
 
-  .container {
-    max-width: 100%;
-    padding: 16px 12px 32px;
-  }
+      .container {
+        max-width: 100%;
+        padding: 16px 12px 32px;
+      }
 
-  h1 {
-    font-size: 18px;
-    text-align: center;
-    margin-bottom: 16px;
-  }
+      h1 {
+        font-size: 18px;
+        text-align: center;
+        margin-bottom: 16px;
+      }
 
-  .grid {
-    display: block;
-  }
+      .grid {
+        display: block;
+      }
 
-  .card {
-    margin-bottom: 16px;
-    min-height: 30vh;        /* was ~100vh, now smaller */
-    scroll-snap-align: start;
-  }
+      .card {
+        margin-bottom: 16px;
+        min-height: 30vh;
+        scroll-snap-align: start;
+      }
 
-  .big-value {
-    font-size: 26px;
-  }
+      .big-value {
+        font-size: 26px;
+      }
 
-  .unit {
-    font-size: 14px;
+      .unit {
+        font-size: 14px;
       }
     }
   </style>
@@ -304,7 +316,10 @@
             <div class="icon">🌡️</div>
           </div>
         </div>
-        <div class="sub-label" id="temp-threshold">Threshold: &lt; 28 / 28–32 / &gt; 32 °C</div>
+        <div class="sub-label" id="temp-threshold">
+          Threshold: &lt; 28 / 28–32 / &gt; 32 °C
+        </div>
+        <canvas id="tempChart" class="sparkline" height="60"></canvas>
       </div>
 
       <!-- Rain Status -->
@@ -330,9 +345,23 @@
               <div class="big-value">
                 <span id="hum-value">--.-</span><span class="unit">%</span>
               </div>
+              <div id="hum-level" class="sub-label">--</div>
             </div>
             <div class="icon">💧</div>
           </div>
+        </div>
+        <canvas id="humChart" class="sparkline" height="60"></canvas>
+      </div>
+
+      <!-- LED Indicator control (moved up) -->
+      <div class="card">
+        <div>
+          <p class="card-title">LED Indicator</p>
+          <div class="big-value" id="led-state" style="font-size:22px;">OFF</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-on" onclick="setIndicator(true)">Turn ON</button>
+          <button class="btn btn-off" onclick="setIndicator(false)">Turn OFF</button>
         </div>
       </div>
 
@@ -355,6 +384,7 @@
             <div id="wind-dir-text" class="wind-dir-text">--</div>
           </div>
         </div>
+        <canvas id="windChart" class="sparkline" height="60"></canvas>
       </div>
 
       <!-- Pressure with graph -->
@@ -383,6 +413,7 @@
           </div>
         </div>
         <div class="sub-label" id="lux-note">BH1750 ambient light</div>
+        <canvas id="luxChart" class="sparkline" height="60"></canvas>
       </div>
 
       <!-- Alerts -->
@@ -419,26 +450,17 @@
         </div>
       </div>
 
-      <!-- LED Indicator control -->
-      <div class="card">
-        <div>
-          <p class="card-title">LED Indicator</p>
-          <div class="big-value" id="led-state" style="font-size:22px;">OFF</div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-on" onclick="setIndicator(true)">Turn ON</button>
-          <button class="btn btn-off" onclick="setIndicator(false)">Turn OFF</button>
-        </div>
-      </div>
-
-      <!-- Device info / placeholder -->
+      <!-- Device info / metadata -->
       <div class="card">
         <div>
           <p class="card-title">Device Info</p>
           <div class="sub-label">Dashboard for GROUP 7 ESP32 Weather Station.</div>
+          <div class="sub-label"><strong>Device:</strong> ESP32 Weather Node #1</div>
+          <div class="sub-label"><strong>Firmware:</strong> v1.0.0 (demo)</div>
+          <div class="sub-label"><strong>Location:</strong> Outdoor</div>
         </div>
-        <div class="sub-label">
-          Designed for Temperature, Humidity, Pressure, Rain, Wind Speed & Direction, and Light Level.
+        <div class="sub-label" style="margin-top:8px;">
+          Designed for Temperature, Humidity, Pressure, Rain, Wind Speed &amp; Direction, and Light Level.
         </div>
       </div>
     </div>
@@ -469,39 +491,75 @@
     const topicLux        = "robota/esp32/lux";
 
     // DOM elements
-    const tempEl       = document.getElementById("temp-value");
-    const tempLevelEl  = document.getElementById("temp-level");
-    const tempThreshEl = document.getElementById("temp-threshold");
-    const humEl        = document.getElementById("hum-value");
-    const presEl       = document.getElementById("pres-value");
-    const rainStatusEl = document.getElementById("rain-status");
-    const rainAdcEl    = document.getElementById("rain-adc");
-    const windSpeedEl  = document.getElementById("wind-speed");
-    const windLevelEl  = document.getElementById("wind-level");
-    const windArrowEl  = document.getElementById("wind-arrow");
-    const windDirTextEl= document.getElementById("wind-dir-text");
-    const alertBoxEl   = document.getElementById("alert-box");
-    const espStatusEl  = document.getElementById("esp-status");
-    const wifiStatusEl = document.getElementById("wifi-status");
-    const mqttStatusEl = document.getElementById("mqtt-status");
-    const lastUpdateEl = document.getElementById("last-update");
-    const ledStateEl   = document.getElementById("led-state");
+    const tempEl        = document.getElementById("temp-value");
+    const tempLevelEl   = document.getElementById("temp-level");
+    const tempThreshEl  = document.getElementById("temp-threshold");
+    const humEl         = document.getElementById("hum-value");
+    const humLevelEl    = document.getElementById("hum-level");
+    const presEl        = document.getElementById("pres-value");
+    const rainStatusEl  = document.getElementById("rain-status");
+    const rainAdcEl     = document.getElementById("rain-adc");
+    const windSpeedEl   = document.getElementById("wind-speed");
+    const windLevelEl   = document.getElementById("wind-level");
+    const windArrowEl   = document.getElementById("wind-arrow");
+    const windDirTextEl = document.getElementById("wind-dir-text");
+    const alertBoxEl    = document.getElementById("alert-box");
+    const espStatusEl   = document.getElementById("esp-status");
+    const wifiStatusEl  = document.getElementById("wifi-status");
+    const mqttStatusEl  = document.getElementById("mqtt-status");
+    const lastUpdateEl  = document.getElementById("last-update");
+    const ledStateEl    = document.getElementById("led-state");
 
-    const luxEl       = document.getElementById("lux-value");
-    const luxLevelEl  = document.getElementById("lux-level");
+    const luxEl         = document.getElementById("lux-value");
+    const luxLevelEl    = document.getElementById("lux-level");
+
+    // Current sensor values (for alerts)
+    let currentTemp       = null;
+    let currentHum        = null;
+    let currentPress      = null;
+    let currentWind       = null;
+    let currentRainStatus = null;
+    let currentRainAdc    = null;
+    let currentLux        = null;
 
     function setLastUpdate() {
       const now = new Date();
       lastUpdateEl.textContent = now.toLocaleTimeString();
     }
 
+    function setOnlineState(isOnline) {
+      if (isOnline) {
+        document.body.classList.remove("offline");
+      } else {
+        document.body.classList.add("offline");
+
+        // Show offline placeholders
+        tempEl.textContent = "--.-";
+        humEl.textContent = "--.-";
+        presEl.textContent = "----.-";
+        windSpeedEl.textContent = "--.-";
+        luxEl.textContent = "----";
+
+        tempLevelEl.textContent = "--";
+        humLevelEl.textContent = "--";
+        windLevelEl.textContent = "--";
+        windDirTextEl.textContent = "--";
+        rainStatusEl.textContent = "--";
+        rainAdcEl.textContent = "ADC: --";
+        luxLevelEl.textContent = "--";
+
+        alertBoxEl.innerHTML = '<div class="no-alerts">Device offline</div>';
+      }
+    }
+
     function setMQTTStatus(text, ok) {
       mqttStatusEl.textContent = text;
       espStatusEl.textContent  = ok ? "ONLINE" : "OFFLINE";
       espStatusEl.style.color  = ok ? "#22c55e" : "#ef4444";
+      setOnlineState(ok);
     }
 
-    // Pressure chart
+    // ===== Full pressure chart =====
     const presLabels = [];
     const presData   = [];
     const maxPoints  = 25;
@@ -552,22 +610,71 @@
       pressureChart.update();
     }
 
-    // Temperature level & alert logic
+    // ===== Sparkline charts for temp, hum, wind, lux =====
+    const sparkMaxPoints = 25;
+
+    function makeSparklineChart(canvasId, color) {
+      const ctx = document.getElementById(canvasId).getContext("2d");
+      const labels = [];
+      const data = [];
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            data,
+            borderColor: color,
+            backgroundColor: "rgba(148,163,184,0.15)",
+            tension: 0.25,
+            pointRadius: 0,
+            borderWidth: 1.5
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          }
+        }
+      });
+
+      function addPoint(v) {
+        labels.push("");
+        data.push(v);
+        if (labels.length > sparkMaxPoints) {
+          labels.shift();
+          data.shift();
+        }
+        chart.update();
+      }
+
+      return addPoint;
+    }
+
+    const addTempPoint = makeSparklineChart("tempChart", "#f97316"); // orange
+    const addHumPoint  = makeSparklineChart("humChart", "#38bdf8"); // blue
+    const addWindPoint = makeSparklineChart("windChart", "#22c55e"); // green
+    const addLuxPoint  = makeSparklineChart("luxChart", "#eab308");  // yellow
+
+    // ===== Temperature level & thresholds (color states) =====
     function updateTempLevel(level) {
       let txt = level;
       let color = "#9ca3af";
       let thresholdText = "Threshold: < 28 / 28–32 / > 32 °C";
 
       if (level === "COOL") {
-        color = "#22c55e";
+        color = "#38bdf8"; // blue
         txt   = "COOL";
         thresholdText = "Threshold: < 28 °C";
       } else if (level === "WARM") {
-        color = "#eab308";
+        color = "#eab308"; // yellow
         txt   = "WARM";
         thresholdText = "Threshold: 28 – 32 °C";
       } else if (level === "HOT") {
-        color = "#ef4444";
+        color = "#ef4444"; // red
         txt   = "HOT";
         thresholdText = "Threshold: > 32 °C";
       }
@@ -575,44 +682,61 @@
       tempLevelEl.textContent = txt;
       tempLevelEl.style.color = color;
       tempThreshEl.textContent = thresholdText;
-
-      alertBoxEl.innerHTML = "";
-      if (level === "HOT") {
-        const div = document.createElement("div");
-        div.className = "alert-item";
-        div.innerHTML = `<span class="alert-icon">⚠️</span><span>High Temperature Alert</span>`;
-        alertBoxEl.appendChild(div);
-      } else {
-        const div = document.createElement("div");
-        div.className = "no-alerts";
-        div.textContent = "No active alerts";
-        alertBoxEl.appendChild(div);
-      }
     }
 
-    // Rain UI
-    function updateRain(status, adc) {
-      if (status) {
-        rainStatusEl.textContent = status.replace("_", " ");
-      } else {
-        rainStatusEl.textContent = "--";
+    // ===== Humidity level (DRY / COMFY / HUMID) =====
+    function updateHumLevel(h) {
+      if (h == null || isNaN(h)) {
+        humLevelEl.textContent = "--";
+        humLevelEl.style.color = "#9ca3af";
+        return;
       }
+
+      let text = "";
+      let color = "#9ca3af";
+
+      if (h < 40) {
+        text = "DRY";
+        color = "#eab308"; // yellow
+      } else if (h <= 60) {
+        text = "COMFY";
+        color = "#22c55e"; // green
+      } else {
+        text = "HUMID";
+        color = "#38bdf8"; // blue
+      }
+
+      humLevelEl.textContent = text;
+      humLevelEl.style.color = color;
+    }
+
+    // ===== Rain UI =====
+    function updateRain(status, adc) {
+      let displayStatus = "--";
+      if (status) {
+        displayStatus = status.replace("_", " ");
+      }
+      rainStatusEl.textContent = displayStatus;
+      currentRainStatus = displayStatus;
 
       if (adc !== undefined) {
         rainAdcEl.textContent = "ADC: " + adc;
+        currentRainAdc = adc;
       }
     }
 
-    // Wind speed + level
+    // ===== Wind speed + level (NORMAL / MODERATE / STRONG) =====
     function updateWindSpeed(mphStr) {
       const speed = parseFloat(mphStr);
       if (isNaN(speed)) {
+        currentWind = null;
         windSpeedEl.textContent = "--.-";
         windLevelEl.textContent = "--";
         windLevelEl.style.color = "#9ca3af";
         return;
       }
 
+      currentWind = speed;
       windSpeedEl.textContent = speed.toFixed(1);
 
       let levelText = "";
@@ -620,20 +744,22 @@
 
       if (speed < 10) {
         levelText = "NORMAL";
-        color = "#22c55e";
-      } else if (speed < 25) {
-        levelText = "FAST";
-        color = "#eab308";
+        color = "#22c55e"; // green
+      } else if (speed < 20) {
+        levelText = "MODERATE";
+        color = "#eab308"; // yellow
       } else {
-        levelText = "DANGEROUS";
-        color = "#ef4444";
+        levelText = "STRONG";
+        color = "#ef4444"; // red
       }
 
       windLevelEl.textContent = levelText;
       windLevelEl.style.color = color;
+
+      addWindPoint(speed);
     }
 
-    // Wind direction
+    // ===== Wind direction arrow =====
     function updateWindDirection(code) {
       if (!code) {
         windDirTextEl.textContent = "--";
@@ -654,16 +780,18 @@
       windArrowEl.style.transform = `rotate(${angle}deg)`;
     }
 
-    // Lux / Light level
+    // ===== Lux / Light level =====
     function updateLux(luxStr) {
       const lux = parseFloat(luxStr);
       if (isNaN(lux)) {
+        currentLux = null;
         luxEl.textContent = "--";
         luxLevelEl.textContent = "--";
         luxLevelEl.style.color = "#9ca3af";
         return;
       }
 
+      currentLux = lux;
       luxEl.textContent = lux.toFixed(0);
 
       let levelText = "";
@@ -685,9 +813,11 @@
 
       luxLevelEl.textContent = levelText;
       luxLevelEl.style.color = color;
+
+      addLuxPoint(lux);
     }
 
-    // LED control
+    // ===== LED control =====
     function setIndicator(on) {
       if (!client.connected) return;
       const msg = on ? "ON" : "OFF";
@@ -695,7 +825,50 @@
     }
     window.setIndicator = setIndicator;
 
-    // MQTT client
+    // ===== Alerts (smart) =====
+    function updateAlerts() {
+      const alerts = [];
+
+      // high temperature
+      if (currentTemp !== null && currentTemp > 32) {
+        alerts.push("High temperature alert");
+      }
+
+      // low pressure (possible storm)
+      if (currentPress !== null && currentPress < 1000) {
+        alerts.push("Low pressure alert (possible bad weather)");
+      }
+
+      // high wind
+      if (currentWind !== null && currentWind > 20) {
+        alerts.push("High wind alert");
+      }
+
+      // heavy rain
+      if (currentRainStatus) {
+        const s = currentRainStatus.toUpperCase();
+        if (!s.includes("NO") && s.includes("RAIN")) {
+          alerts.push("Heavy rain alert");
+        }
+      }
+
+      alertBoxEl.innerHTML = "";
+      if (alerts.length === 0) {
+        const div = document.createElement("div");
+        div.className = "no-alerts";
+        div.textContent = "No active alerts";
+        alertBoxEl.appendChild(div);
+      } else {
+        alerts.forEach(msg => {
+          const div = document.createElement("div");
+          div.className = "alert-item";
+          div.innerHTML = `<span class="alert-icon">⚠️</span><span>${msg}</span>`;
+          alertBoxEl.appendChild(div);
+        });
+      }
+    }
+
+    // ===== MQTT client =====
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
@@ -737,11 +910,31 @@
       console.log("Message:", topic, payload);
 
       if (topic === topicTemp) {
-        tempEl.textContent = payload;
+        const tVal = parseFloat(payload);
+        if (!isNaN(tVal)) {
+          currentTemp = tVal;
+          tempEl.textContent = tVal.toFixed(1);
+          addTempPoint(tVal);
+        } else {
+          currentTemp = null;
+          tempEl.textContent = payload;
+        }
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicHum) {
-        humEl.textContent = payload;
+        const hVal = parseFloat(payload);
+        if (!isNaN(hVal)) {
+          currentHum = hVal;
+          humEl.textContent = hVal.toFixed(1);
+          updateHumLevel(hVal);
+          addHumPoint(hVal);
+        } else {
+          currentHum = null;
+          humEl.textContent = payload;
+          updateHumLevel(null);
+        }
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicLevel) {
         updateTempLevel(payload.trim());
         setLastUpdate();
@@ -751,33 +944,38 @@
       } else if (topic === topicPress) {
         const p = parseFloat(payload);
         if (!isNaN(p)) {
+          currentPress = p;
           presEl.textContent = p.toFixed(1);
           addPressurePoint(p);
         } else {
+          currentPress = null;
           presEl.textContent = payload;
         }
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicRainStatus) {
         updateRain(payload, lastRainAdcValue);
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicRainAdc) {
         const adc = parseInt(payload, 10);
         lastRainAdcValue = isNaN(adc) ? payload : adc;
         updateRain(rainStatusEl.textContent.replace(" ", "_"), lastRainAdcValue);
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicWindMph) {
         updateWindSpeed(payload);
         setLastUpdate();
+        updateAlerts();
       } else if (topic === topicWindDir) {
         updateWindDirection(payload);
         setLastUpdate();
       } else if (topic === topicLux) {
         updateLux(payload);
         setLastUpdate();
+        updateAlerts();
       }
     });
   </script>
 </body>
 </html>
-
-
