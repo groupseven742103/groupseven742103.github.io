@@ -246,41 +246,41 @@
     }
 
     /* Phone: one card per “screen”, vertical snap scroll */
-    @media (max-width: 620px) {
-      body {
-        display: block;
-        padding: 0;
-        scroll-snap-type: y mandatory;
-        overflow-y: auto;
-      }
+@media (max-width: 620px) {
+  body {
+    display: block;
+    padding: 0;
+    scroll-snap-type: y mandatory;
+    overflow-y: auto;
+  }
 
-      .container {
-        max-width: 100%;
-        padding: 16px 12px 32px;
-      }
+  .container {
+    max-width: 100%;
+    padding: 16px 12px 32px;
+  }
 
-      h1 {
-        font-size: 18px;
-        text-align: center;
-        margin-bottom: 16px;
-      }
+  h1 {
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
 
-      .grid {
-        display: block;
-      }
+  .grid {
+    display: block;
+  }
 
-      .card {
-        margin-bottom: 20px;
-        min-height: calc(100vh - 120px); /* almost full screen */
-        scroll-snap-align: start;
-      }
+  .card {
+    margin-bottom: 16px;
+    min-height: 70vh;        /* was ~100vh, now smaller */
+    scroll-snap-align: start;
+  }
 
-      .big-value {
-        font-size: 26px;
-      }
+  .big-value {
+    font-size: 26px;
+  }
 
-      .unit {
-        font-size: 14px;
+  .unit {
+    font-size: 14px;
       }
     }
   </style>
@@ -779,3 +779,4 @@
   </script>
 </body>
 </html>
+
