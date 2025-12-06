@@ -109,19 +109,19 @@
     }
 
     .icon {
-      font-size: 22px;
+      font-size: 36px;     /* bigger generic icons */
       margin-right: 4px;
     }
 
-    /* Rain small icon */
+    /* Rain icon */
     .rain-icon {
-      font-size: 30px;
+      font-size: 42px;     /* bigger rain icon */
       color: var(--accent-blue);
     }
 
     /* Wind icon */
     .wind-icon {
-      font-size: 28px;
+      font-size: 42px;     /* bigger wind icon */
       color: var(--accent-blue);
     }
 
@@ -136,9 +136,9 @@
     .wind-arrow {
       width: 0;
       height: 0;
-      border-left: 10px solid transparent;
-      border-right: 10px solid transparent;
-      border-bottom: 24px solid var(--accent-yellow);
+      border-left: 12px solid transparent;   /* wider base */
+      border-right: 12px solid transparent;
+      border-bottom: 30px solid var(--accent-yellow); /* taller arrow */
       transform-origin: 50% 90%;
       transition: transform 0.35s ease;
     }
@@ -215,7 +215,7 @@
     }
 
     .alert-icon {
-      font-size: 20px;
+      font-size: 26px;     /* bigger alert icon */
       color: var(--accent-yellow);
     }
 
@@ -353,7 +353,7 @@
         <canvas id="humChart" class="sparkline" height="60"></canvas>
       </div>
 
-      <!-- LED Indicator control (moved up) -->
+      <!-- LED Indicator control -->
       <div class="card">
         <div>
           <p class="card-title">LED Indicator</p>
