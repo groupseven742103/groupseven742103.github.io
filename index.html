@@ -175,35 +175,34 @@
     .band-pres { background: var(--accent-purple); box-shadow: 0 0 16px rgba(168,85,247,0.6); }
     .band-lux  { background: var(--accent-yellow); box-shadow: 0 0 16px rgba(250,204,21,0.7); }
 
-    /* Wind direction (separate card) - BIG + CENTERED */
-    .wind-dir-wrapper {
-      margin-top: 10px;
-      height: 130px;                 /* fixed area inside card */
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;           /* center horizontally */
-      justify-content: center;       /* center vertically */
-      gap: 10px;
-    }
+  /* Wind direction (separate card) - BIG + CENTERED, NO OVERLAP */
+.wind-dir-wrapper {
+  margin-top: 10px;
+  height: 130px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* center horizontally */
+  justify-content: center;  /* center vertically */
+}
 
-    .wind-arrow {
-      width: 0;
-      height: 0;
-      border-left: 30px solid transparent;   /* bigger arrow */
-      border-right: 30px solid transparent;
-      border-bottom: 70px solid var(--accent-yellow);
-      transform-origin: 50% 90%;
-      transition: transform 0.35s ease;
-    }
+.wind-arrow {
+  width: 0;
+  height: 0;
+  border-left: 30px solid transparent;
+  border-right: 30px solid transparent;
+  border-bottom: 70px solid var(--accent-yellow);
+  transform-origin: 50% 90%;
+  transition: transform 0.35s ease;
+  margin-bottom: 20px;      /* <-- pushes text down so it never sits under the triangle */
+}
 
-    .wind-dir-text {
-      font-size: 16px;
-      color: var(--text-main);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
+.wind-dir-text {
+  font-size: 16px;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
     /* LED buttons */
     .btn-row {
       margin-top: 10px;
@@ -981,3 +980,4 @@
   </script>
 </body>
 </html>
+
