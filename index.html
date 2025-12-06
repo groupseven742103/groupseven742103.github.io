@@ -146,7 +146,6 @@
       overflow: hidden;
     }
 
-    /* darker center stripe, like reference */
     .band-track::before {
       content: "";
       position: absolute;
@@ -176,27 +175,30 @@
     .band-pres { background: var(--accent-purple); box-shadow: 0 0 16px rgba(168,85,247,0.6); }
     .band-lux  { background: var(--accent-yellow); box-shadow: 0 0 16px rgba(250,204,21,0.7); }
 
-    /* Wind direction arrow (keep your existing style) */
-    .wind-dir-row {
+    /* Wind direction (separate card) */
+    .wind-dir-wrapper {
+      margin-top: 20px;
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 16px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
     }
 
     .wind-arrow {
       width: 0;
       height: 0;
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-bottom: 30px solid var(--accent-yellow);
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-bottom: 34px solid var(--accent-yellow);
       transform-origin: 50% 90%;
       transition: transform 0.35s ease;
     }
 
     .wind-dir-text {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     /* LED buttons */
@@ -355,7 +357,6 @@
           Threshold: &lt; 28 / 28–32 / &gt; 32 °C
         </div>
 
-        <!-- custom vertical band gauge -->
         <div class="band-gauge">
           <div class="band-track">
             <div id="temp-band" class="band-fill band-temp"></div>
@@ -411,7 +412,7 @@
         </div>
       </div>
 
-      <!-- Wind Speed + Direction -->
+      <!-- Wind (speed only) -->
       <div class="card">
         <div>
           <p class="card-title">Wind</p>
@@ -424,16 +425,22 @@
             </div>
             <div class="wind-icon">🌬️</div>
           </div>
-
-          <div class="wind-dir-row">
-            <div id="wind-arrow" class="wind-arrow"></div>
-            <div id="wind-dir-text" class="wind-dir-text">--</div>
-          </div>
         </div>
 
         <div class="band-gauge">
           <div class="band-track">
             <div id="wind-band" class="band-fill band-wind"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind Direction (separate box) -->
+      <div class="card">
+        <div>
+          <p class="card-title">Wind Direction</p>
+          <div class="wind-dir-wrapper">
+            <div id="wind-arrow" class="wind-arrow"></div>
+            <div id="wind-dir-text" class="wind-dir-text">--</div>
           </div>
         </div>
       </div>
@@ -573,7 +580,6 @@
     const luxEl         = document.getElementById("lux-value");
     const luxLevelEl    = document.getElementById("lux-level");
 
-    // band gauge elements
     const tempBand = document.getElementById("temp-band");
     const humBand  = document.getElementById("hum-band");
     const windBand = document.getElementById("wind-band");
@@ -635,7 +641,6 @@
       setOnlineState(ok);
     }
 
-    // -------- band gauge update helper --------
     function makeBandUpdater(element, min, max) {
       const range = max - min;
       return function(value) {
@@ -647,25 +652,20 @@
         }
         let v = Math.min(Math.max(value, min), max);
         let pct = ((v - min) / range) * 100;
-        const minPct = 4;   // ensure visible even at low values
+        const minPct = 4;
         if (pct < minPct) pct = minPct;
-
-        // little tilt based on value (for that slanted look)
-        const tilt = (pct - 50) / 100 * 6;   // between about -3deg and +3deg
-
+        const tilt = (pct - 50) / 100 * 6;
         element.style.height = pct + "%";
         element.style.transform = `translateX(-50%) skewX(${tilt}deg)`;
       };
     }
 
-    // ranges can be tuned
     const updateTempBand = makeBandUpdater(tempBand, 20, 40);
     const updateHumBand  = makeBandUpdater(humBand, 0, 100);
     const updateWindBand = makeBandUpdater(windBand, 0, 40);
     const updatePresBand = makeBandUpdater(presBand, 980, 1040);
     const updateLuxBand  = makeBandUpdater(luxBand, 0, 20000);
 
-    // ===== Temperature level & thresholds (color states) =====
     function updateTempLevel(level) {
       let txt = level;
       let color = "#9ca3af";
@@ -690,7 +690,6 @@
       tempThreshEl.textContent = thresholdText;
     }
 
-    // ===== Humidity level (DRY / COMFY / HUMID) =====
     function updateHumLevel(h) {
       if (h == null || isNaN(h)) {
         humLevelEl.textContent = "--";
@@ -716,7 +715,6 @@
       humLevelEl.style.color = color;
     }
 
-    // ===== Rain UI =====
     function updateRain(status, adc) {
       let displayStatus = "--";
       if (status) {
@@ -731,7 +729,6 @@
       }
     }
 
-    // ===== Wind speed + level =====
     function updateWindSpeed(mphStr) {
       const speed = parseFloat(mphStr);
       if (isNaN(speed)) {
@@ -766,7 +763,6 @@
       updateWindBand(speed);
     }
 
-    // ===== Wind direction arrow =====
     function updateWindDirection(code) {
       if (!code) {
         windDirTextEl.textContent = "--";
@@ -787,7 +783,6 @@
       windArrowEl.style.transform = `rotate(${angle}deg)`;
     }
 
-    // ===== Lux / Light level =====
     function updateLux(luxStr) {
       const lux = parseFloat(luxStr);
       if (isNaN(lux)) {
@@ -825,7 +820,6 @@
       updateLuxBand(lux);
     }
 
-    // ===== LED control =====
     function setIndicator(on) {
       if (!client.connected) return;
       const msg = on ? "ON" : "OFF";
@@ -833,7 +827,6 @@
     }
     window.setIndicator = setIndicator;
 
-    // ===== Alerts (smart) =====
     function updateAlerts() {
       const alerts = [];
 
@@ -872,7 +865,6 @@
       }
     }
 
-    // ===== MQTT client =====
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
