@@ -7,8 +7,6 @@
 
   <!-- MQTT client -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <!-- Chart.js for graphs -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     :root {
@@ -21,6 +19,7 @@
       --accent-green: #22c55e;
       --accent-red: #ef4444;
       --accent-orange: #f97316;
+      --accent-purple: #a855f7;
     }
 
     * {
@@ -125,59 +124,79 @@
       color: var(--accent-blue);
     }
 
-    /* Wind direction row */
+    /* ----------- CUSTOM BAND GAUGE GRAPH ----------- */
+
+    .band-gauge {
+      margin-top: 12px;
+      background: #020617;
+      border-radius: 14px;
+      height: 130px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 10px 26px;
+    }
+
+    .band-track {
+      position: relative;
+      width: 32px;
+      height: 100%;
+      border-radius: 999px;
+      background: #0b1220;
+      overflow: hidden;
+    }
+
+    /* darker center stripe, like reference */
+    .band-track::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 100%;
+      background: #111827;
+    }
+
+    .band-fill {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      border-radius: 999px 999px 0 0;
+      height: 0%;
+      transition: height 0.25s ease, transform 0.25s ease;
+      box-shadow: 0 0 14px rgba(0,0,0,0.6);
+    }
+
+    .band-temp { background: var(--accent-orange); box-shadow: 0 0 16px rgba(249,115,22,0.6); }
+    .band-hum  { background: var(--accent-blue);   box-shadow: 0 0 16px rgba(56,189,248,0.6); }
+    .band-wind { background: var(--accent-green);  box-shadow: 0 0 16px rgba(34,197,94,0.6); }
+    .band-pres { background: var(--accent-purple); box-shadow: 0 0 16px rgba(168,85,247,0.6); }
+    .band-lux  { background: var(--accent-yellow); box-shadow: 0 0 16px rgba(250,204,21,0.7); }
+
+    /* Wind direction arrow (keep your existing style) */
     .wind-dir-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-top: 16px;
     }
 
-    /* Compass styling (N/E/S/W with needle) */
-    .compass {
-      position: relative;
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: 2px solid var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .compass-label {
-      position: absolute;
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-
-    .compass-n { top: 2px; left: 50%; transform: translateX(-50%); }
-    .compass-s { bottom: 2px; left: 50%; transform: translateX(-50%); }
-    .compass-e { right: 2px; top: 50%; transform: translateY(-50%); }
-    .compass-w { left: 2px; top: 50%; transform: translateY(-50%); }
-
-    .compass-needle {
+    .wind-arrow {
       width: 0;
       height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
       border-bottom: 30px solid var(--accent-yellow);
-      transform-origin: 50% 80%;
+      transform-origin: 50% 90%;
       transition: transform 0.35s ease;
     }
 
     .wind-dir-text {
-      font-size: 14px;
+      font-size: 12px;
       color: var(--text-muted);
-    }
-
-    /* Charts (now gauges) */
-    #pressureChart,
-    .sparkline {
-      margin-top: 8px;
-      background: #020617;
-      border-radius: 10px;
-      width: 100%;
     }
 
     /* LED buttons */
@@ -335,8 +354,13 @@
         <div class="sub-label" id="temp-threshold">
           Threshold: &lt; 28 / 28–32 / &gt; 32 °C
         </div>
-        <!-- gauge instead of line sparkline -->
-        <canvas id="tempChart" class="sparkline" height="80"></canvas>
+
+        <!-- custom vertical band gauge -->
+        <div class="band-gauge">
+          <div class="band-track">
+            <div id="temp-band" class="band-fill band-temp"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Rain Status -->
@@ -367,7 +391,12 @@
             <div class="icon">💧</div>
           </div>
         </div>
-        <canvas id="humChart" class="sparkline" height="80"></canvas>
+
+        <div class="band-gauge">
+          <div class="band-track">
+            <div id="hum-band" class="band-fill band-hum"></div>
+          </div>
+        </div>
       </div>
 
       <!-- LED Indicator control -->
@@ -397,20 +426,19 @@
           </div>
 
           <div class="wind-dir-row">
-            <div class="compass">
-              <div class="compass-label compass-n">N</div>
-              <div class="compass-label compass-e">E</div>
-              <div class="compass-label compass-s">S</div>
-              <div class="compass-label compass-w">W</div>
-              <div id="compass-needle" class="compass-needle"></div>
-            </div>
+            <div id="wind-arrow" class="wind-arrow"></div>
             <div id="wind-dir-text" class="wind-dir-text">--</div>
           </div>
         </div>
-        <canvas id="windChart" class="sparkline" height="80"></canvas>
+
+        <div class="band-gauge">
+          <div class="band-track">
+            <div id="wind-band" class="band-fill band-wind"></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Pressure with gauge -->
+      <!-- Pressure -->
       <div class="card">
         <div>
           <p class="card-title">Pressure</p>
@@ -418,7 +446,12 @@
             <span id="pres-value">----.-</span><span class="unit">hPa</span>
           </div>
         </div>
-        <canvas id="pressureChart" height="100"></canvas>
+
+        <div class="band-gauge">
+          <div class="band-track">
+            <div id="pres-band" class="band-fill band-pres"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Lux / Light Level -->
@@ -436,7 +469,12 @@
           </div>
         </div>
         <div class="sub-label" id="lux-note">BH1750 ambient light</div>
-        <canvas id="luxChart" class="sparkline" height="80"></canvas>
+
+        <div class="band-gauge">
+          <div class="band-track">
+            <div id="lux-band" class="band-fill band-lux"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Alerts -->
@@ -524,8 +562,8 @@
     const rainAdcEl     = document.getElementById("rain-adc");
     const windSpeedEl   = document.getElementById("wind-speed");
     const windLevelEl   = document.getElementById("wind-level");
+    const windArrowEl   = document.getElementById("wind-arrow");
     const windDirTextEl = document.getElementById("wind-dir-text");
-    const compassNeedleEl = document.getElementById("compass-needle");
     const alertBoxEl    = document.getElementById("alert-box");
     const espStatusEl   = document.getElementById("esp-status");
     const wifiStatusEl  = document.getElementById("wifi-status");
@@ -534,6 +572,13 @@
     const ledStateEl    = document.getElementById("led-state");
     const luxEl         = document.getElementById("lux-value");
     const luxLevelEl    = document.getElementById("lux-level");
+
+    // band gauge elements
+    const tempBand = document.getElementById("temp-band");
+    const humBand  = document.getElementById("hum-band");
+    const windBand = document.getElementById("wind-band");
+    const presBand = document.getElementById("pres-band");
+    const luxBand  = document.getElementById("lux-band");
 
     // Current sensor values (for alerts)
     let currentTemp       = null;
@@ -547,6 +592,15 @@
     function setLastUpdate() {
       const now = new Date();
       lastUpdateEl.textContent = now.toLocaleTimeString();
+    }
+
+    function resetBands() {
+      [tempBand, humBand, windBand, presBand, luxBand].forEach(b => {
+        if (b) {
+          b.style.height = "0%";
+          b.style.transform = "translateX(-50%)";
+        }
+      });
     }
 
     function setOnlineState(isOnline) {
@@ -570,6 +624,7 @@
         luxLevelEl.textContent = "--";
 
         alertBoxEl.innerHTML = '<div class="no-alerts">Device offline</div>';
+        resetBands();
       }
     }
 
@@ -580,51 +635,35 @@
       setOnlineState(ok);
     }
 
-    // ===== Gauge charts (doughnut half-circles) =====
-    function makeGaugeChart(canvasId, min, max, color) {
-      const ctx = document.getElementById(canvasId).getContext("2d");
+    // -------- band gauge update helper --------
+    function makeBandUpdater(element, min, max) {
       const range = max - min;
-
-      const chart = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          datasets: [{
-            data: [0, range],
-            backgroundColor: [color, "#1f2937"],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          animation: false,
-          rotation: -Math.PI,
-          circumference: Math.PI,
-          cutout: "70%",
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false }
-          }
+      return function(value) {
+        if (!element) return;
+        if (value == null || isNaN(value)) {
+          element.style.height = "0%";
+          element.style.transform = "translateX(-50%)";
+          return;
         }
-      });
-
-      function update(value) {
-        if (value == null || isNaN(value)) return;
         let v = Math.min(Math.max(value, min), max);
-        const segVal = v - min;
-        chart.data.datasets[0].data[0] = segVal;
-        chart.data.datasets[0].data[1] = range - segVal;
-        chart.update();
-      }
+        let pct = ((v - min) / range) * 100;
+        const minPct = 4;   // ensure visible even at low values
+        if (pct < minPct) pct = minPct;
 
-      return update;
+        // little tilt based on value (for that slanted look)
+        const tilt = (pct - 50) / 100 * 6;   // between about -3deg and +3deg
+
+        element.style.height = pct + "%";
+        element.style.transform = `translateX(-50%) skewX(${tilt}deg)`;
+      };
     }
 
-    // Create gauges for each metric
-    const updateTempGauge = makeGaugeChart("tempChart", 20, 40, "#f97316");
-    const updateHumGauge  = makeGaugeChart("humChart", 0, 100, "#38bdf8");
-    const updateWindGauge = makeGaugeChart("windChart", 0, 40, "#22c55e");
-    const updatePresGauge = makeGaugeChart("pressureChart", 980, 1040, "#38bdf8");
-    const updateLuxGauge  = makeGaugeChart("luxChart", 0, 20000, "#eab308");
+    // ranges can be tuned
+    const updateTempBand = makeBandUpdater(tempBand, 20, 40);
+    const updateHumBand  = makeBandUpdater(humBand, 0, 100);
+    const updateWindBand = makeBandUpdater(windBand, 0, 40);
+    const updatePresBand = makeBandUpdater(presBand, 980, 1040);
+    const updateLuxBand  = makeBandUpdater(luxBand, 0, 20000);
 
     // ===== Temperature level & thresholds (color states) =====
     function updateTempLevel(level) {
@@ -692,7 +731,7 @@
       }
     }
 
-    // ===== Wind speed + level (NORMAL / MODERATE / STRONG) =====
+    // ===== Wind speed + level =====
     function updateWindSpeed(mphStr) {
       const speed = parseFloat(mphStr);
       if (isNaN(speed)) {
@@ -700,6 +739,7 @@
         windSpeedEl.textContent = "--.-";
         windLevelEl.textContent = "--";
         windLevelEl.style.color = "#9ca3af";
+        updateWindBand(NaN);
         return;
       }
 
@@ -723,14 +763,14 @@
       windLevelEl.textContent = levelText;
       windLevelEl.style.color = color;
 
-      updateWindGauge(speed);
+      updateWindBand(speed);
     }
 
-    // ===== Wind direction compass =====
+    // ===== Wind direction arrow =====
     function updateWindDirection(code) {
       if (!code) {
         windDirTextEl.textContent = "--";
-        compassNeedleEl.style.transform = "rotate(0deg)";
+        windArrowEl.style.transform = "rotate(0deg)";
         return;
       }
 
@@ -744,7 +784,7 @@
       else if (c === "W") { label = "WEST"; angle = 270; }
 
       windDirTextEl.textContent = label;
-      compassNeedleEl.style.transform = `rotate(${angle}deg)`;
+      windArrowEl.style.transform = `rotate(${angle}deg)`;
     }
 
     // ===== Lux / Light level =====
@@ -755,6 +795,7 @@
         luxEl.textContent = "--";
         luxLevelEl.textContent = "--";
         luxLevelEl.style.color = "#9ca3af";
+        updateLuxBand(NaN);
         return;
       }
 
@@ -781,7 +822,7 @@
       luxLevelEl.textContent = levelText;
       luxLevelEl.style.color = color;
 
-      updateLuxGauge(lux);
+      updateLuxBand(lux);
     }
 
     // ===== LED control =====
@@ -877,10 +918,11 @@
         if (!isNaN(tVal)) {
           currentTemp = tVal;
           tempEl.textContent = tVal.toFixed(1);
-          updateTempGauge(tVal);
+          updateTempBand(tVal);
         } else {
           currentTemp = null;
           tempEl.textContent = payload;
+          updateTempBand(NaN);
         }
         setLastUpdate();
         updateAlerts();
@@ -890,11 +932,12 @@
           currentHum = hVal;
           humEl.textContent = hVal.toFixed(1);
           updateHumLevel(hVal);
-          updateHumGauge(hVal);
+          updateHumBand(hVal);
         } else {
           currentHum = null;
           humEl.textContent = payload;
           updateHumLevel(null);
+          updateHumBand(NaN);
         }
         setLastUpdate();
         updateAlerts();
@@ -909,10 +952,11 @@
         if (!isNaN(p)) {
           currentPress = p;
           presEl.textContent = p.toFixed(1);
-          updatePresGauge(p);
+          updatePresBand(p);
         } else {
           currentPress = null;
           presEl.textContent = payload;
+          updatePresBand(NaN);
         }
         setLastUpdate();
         updateAlerts();
