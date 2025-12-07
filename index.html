@@ -7,8 +7,105 @@
 
   <!-- MQTT client -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <!-- Chart.js for sparkline graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    /* ==== PRESSURE ICON (barometer) ==== */
+.pressure-icon {
+  width: 40px;
+  height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.pressure-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  position: relative;
+  box-shadow: 0 0 0 2px #020617;
+}
+
+.pressure-inner-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+}
+
+/* small tick marks at left/right/top */
+.pressure-tick {
+  position: absolute;
+  width: 6px;
+  height: 2px;
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+.pressure-tick.left  { left: 3px;  top: 50%; transform: translateY(-50%); }
+.pressure-tick.right { right: 3px; top: 50%; transform: translateY(-50%); }
+.pressure-tick.top   { top: 3px;   left: 50%; transform: translateX(-50%) rotate(90deg); }
+
+/* needle */
+.pressure-needle {
+  position: absolute;
+  width: 2px;
+  height: 13px;
+  background: #e5e7eb;
+  top: 50%;
+  left: 50%;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(-35deg); /* angle of pointer */
+}
+
+.pressure-center {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #020617;
+  border: 2px solid #e5e7eb;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* line under gauge */
+.pressure-line {
+  width: 16px;
+  height: 3px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+/* little stand/legs */
+.pressure-stand {
+  margin-top: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid #e5e7eb;
+  position: relative;
+}
+
+.pressure-stand::before,
+.pressure-stand::after {
+  content: "";
+  position: absolute;
+  width: 3px;
+  height: 8px;
+  background: #e5e7eb;
+  bottom: -6px;
+  border-radius: 999px;
+}
+
+.pressure-stand::before { left: 1px; }
+.pressure-stand::after  { right: 1px; }
+
     :root {
       --bg-main: #020617;
       --bg-card: #0b1220;
@@ -97,112 +194,101 @@
       margin-top: 4px;
     }
 
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(15,23,42,0.9);
-      font-size: 12px;
-    }
-
     .icon {
       font-size: 36px;
       margin-right: 4px;
     }
 
-    /* Rain icon */
     .rain-icon {
       font-size: 42px;
       color: var(--accent-blue);
     }
 
-    /* Wind icon */
     .wind-icon {
       font-size: 42px;
       color: var(--accent-blue);
     }
 
-    /* ----------- CUSTOM BAND GAUGE GRAPH ----------- */
+    /* Sparkline graphs */
+    .sparkline-wrapper {
+      margin-top: 10px;
+      width: 100%;
+      height: 60px;
+    }
 
-    .band-gauge {
-      margin-top: 12px;
-      background: #020617;
-      border-radius: 14px;
+    .sparkline {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ====== WIND DIRECTION COMPASS ====== */
+    .compass-wrapper {
+      margin-top: 10px;
       height: 130px;
+      width: 100%;
       display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      align-items: flex-end;
-      padding: 10px 26px;
+      gap: 6px;
     }
 
-    .band-track {
+    .compass-circle {
       position: relative;
-      width: 32px;
-      height: 100%;
-      border-radius: 999px;
-      background: #0b1220;
-      overflow: hidden;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 2px solid #1f2937;
+      background: radial-gradient(circle at 30% 30%, #020617, #030712);
+      box-shadow: 0 0 14px rgba(0,0,0,0.7);
     }
 
-    .band-track::before {
-      content: "";
+    .compass-label {
       position: absolute;
-      left: 50%;
-      top: 0;
-      transform: translateX(-50%);
-      width: 12px;
-      height: 100%;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .compass-n { top: 4px; left: 50%; transform: translateX(-50%); }
+    .compass-s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .compass-e { right: 4px; top: 50%; transform: translateY(-50%); }
+    .compass-w { left: 4px; top: 50%; transform: translateY(-50%); }
+
+    .compass-center-dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
       background: #111827;
-    }
-
-    .band-fill {
-      position: absolute;
-      bottom: 0;
+      border: 2px solid #9ca3af;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      width: 24px;
-      border-radius: 999px 999px 0 0;
-      height: 0%;
-      transition: height 0.25s ease, transform 0.25s ease;
-      box-shadow: 0 0 14px rgba(0,0,0,0.6);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 6px rgba(148,163,184,0.8);
     }
 
-    .band-temp { background: var(--accent-orange); box-shadow: 0 0 16px rgba(249,115,22,0.6); }
-    .band-hum  { background: var(--accent-blue);   box-shadow: 0 0 16px rgba(56,189,248,0.6); }
-    .band-wind { background: var(--accent-green);  box-shadow: 0 0 16px rgba(34,197,94,0.6); }
-    .band-pres { background: var(--accent-purple); box-shadow: 0 0 16px rgba(168,85,247,0.6); }
-    .band-lux  { background: var(--accent-yellow); box-shadow: 0 0 16px rgba(250,204,21,0.7); }
+    .compass-needle {
+      position: absolute;
+      width: 4px;
+      height: 32px;
+      border-radius: 999px;
+      background: var(--accent-yellow);
+      top: 50%;
+      left: 50%;
+      transform-origin: 50% 80%;
+      transform: translate(-50%, -80%) rotate(0deg);
+      box-shadow: 0 0 10px rgba(250,204,21,0.7);
+      transition: transform 0.35s ease;
+    }
 
-  /* Wind direction (separate card) - BIG + CENTERED, NO OVERLAP */
-.wind-dir-wrapper {
-  margin-top: 10px;
-  height: 130px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;      /* center horizontally */
-  justify-content: center;  /* center vertically */
-}
+    .wind-dir-text {
+      font-size: 16px;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
 
-.wind-arrow {
-  width: 0;
-  height: 0;
-  border-left: 30px solid transparent;
-  border-right: 30px solid transparent;
-  border-bottom: 70px solid var(--accent-yellow);
-  transform-origin: 50% 90%;
-  transition: transform 0.35s ease;
-  margin-bottom: 70px;      /* <-- pushes text down so it never sits under the triangle */
-}
-
-.wind-dir-text {
-  font-size: 16px;
-  color: var(--text-main);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
     /* LED buttons */
     .btn-row {
       margin-top: 10px;
@@ -359,10 +445,8 @@
           Threshold: &lt; 28 / 28–32 / &gt; 32 °C
         </div>
 
-        <div class="band-gauge">
-          <div class="band-track">
-            <div id="temp-band" class="band-fill band-temp"></div>
-          </div>
+        <div class="sparkline-wrapper">
+          <canvas id="temp-chart" class="sparkline"></canvas>
         </div>
       </div>
 
@@ -395,10 +479,8 @@
           </div>
         </div>
 
-        <div class="band-gauge">
-          <div class="band-track">
-            <div id="hum-band" class="band-fill band-hum"></div>
-          </div>
+        <div class="sparkline-wrapper">
+          <canvas id="hum-chart" class="sparkline"></canvas>
         </div>
       </div>
 
@@ -429,39 +511,58 @@
           </div>
         </div>
 
-        <div class="band-gauge">
-          <div class="band-track">
-            <div id="wind-band" class="band-fill band-wind"></div>
-          </div>
+        <div class="sparkline-wrapper">
+          <canvas id="wind-chart" class="sparkline"></canvas>
         </div>
       </div>
 
-      <!-- Wind Direction (separate box) -->
+      <!-- Wind Direction (COMPASS) -->
       <div class="card">
         <div>
           <p class="card-title">Wind Direction</p>
-          <div class="wind-dir-wrapper">
-            <div id="wind-arrow" class="wind-arrow"></div>
+          <div class="compass-wrapper">
+            <div class="compass-circle">
+              <div class="compass-label compass-n">N</div>
+              <div class="compass-label compass-e">E</div>
+              <div class="compass-label compass-s">S</div>
+              <div class="compass-label compass-w">W</div>
+              <div id="compass-needle" class="compass-needle"></div>
+              <div class="compass-center-dot"></div>
+            </div>
             <div id="wind-dir-text" class="wind-dir-text">--</div>
           </div>
         </div>
       </div>
 
-      <!-- Pressure -->
-      <div class="card">
-        <div>
-          <p class="card-title">Pressure</p>
-          <div class="big-value" style="font-size:24px;">
-            <span id="pres-value">----.-</span><span class="unit">hPa</span>
-          </div>
-        </div>
-
-        <div class="band-gauge">
-          <div class="band-track">
-            <div id="pres-band" class="band-fill band-pres"></div>
-          </div>
-        </div>
+            <!-- Pressure -->
+<div class="card">
+  <div>
+    <p class="card-title">Pressure</p>
+    <div class="card-row">
+      <div class="big-value" style="font-size:24px;">
+        <span id="pres-value">----.-</span><span class="unit">hPa</span>
       </div>
+      <div class="pressure-icon">
+        <div class="pressure-circle">
+          <div class="pressure-inner-ring"></div>
+          <div class="pressure-tick left"></div>
+          <div class="pressure-tick right"></div>
+          <div class="pressure-tick top"></div>
+          <div class="pressure-needle"></div>
+          <div class="pressure-center"></div>
+        </div>
+        <div class="pressure-line"></div>
+        <div class="pressure-stand"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sparkline-wrapper">
+    <canvas id="pres-chart" class="sparkline"></canvas>
+  </div>
+</div>
+
+
 
       <!-- Lux / Light Level -->
       <div class="card">
@@ -479,10 +580,8 @@
         </div>
         <div class="sub-label" id="lux-note">BH1750 ambient light</div>
 
-        <div class="band-gauge">
-          <div class="band-track">
-            <div id="lux-band" class="band-fill band-lux"></div>
-          </div>
+        <div class="sparkline-wrapper">
+          <canvas id="lux-chart" class="sparkline"></canvas>
         </div>
       </div>
 
@@ -571,8 +670,8 @@
     const rainAdcEl     = document.getElementById("rain-adc");
     const windSpeedEl   = document.getElementById("wind-speed");
     const windLevelEl   = document.getElementById("wind-level");
-    const windArrowEl   = document.getElementById("wind-arrow");
     const windDirTextEl = document.getElementById("wind-dir-text");
+    const compassNeedleEl = document.getElementById("compass-needle");
     const alertBoxEl    = document.getElementById("alert-box");
     const espStatusEl   = document.getElementById("esp-status");
     const wifiStatusEl  = document.getElementById("wifi-status");
@@ -582,11 +681,12 @@
     const luxEl         = document.getElementById("lux-value");
     const luxLevelEl    = document.getElementById("lux-level");
 
-    const tempBand = document.getElementById("temp-band");
-    const humBand  = document.getElementById("hum-band");
-    const windBand = document.getElementById("wind-band");
-    const presBand = document.getElementById("pres-band");
-    const luxBand  = document.getElementById("lux-band");
+    // Sparkline canvases
+    const tempChartCtx = document.getElementById("temp-chart").getContext("2d");
+    const humChartCtx  = document.getElementById("hum-chart").getContext("2d");
+    const windChartCtx = document.getElementById("wind-chart").getContext("2d");
+    const luxChartCtx  = document.getElementById("lux-chart").getContext("2d");
+    const presChartCtx = document.getElementById("pres-chart").getContext("2d");
 
     // Current sensor values (for alerts)
     let currentTemp       = null;
@@ -600,15 +700,6 @@
     function setLastUpdate() {
       const now = new Date();
       lastUpdateEl.textContent = now.toLocaleTimeString();
-    }
-
-    function resetBands() {
-      [tempBand, humBand, windBand, presBand, luxBand].forEach(b => {
-        if (b) {
-          b.style.height = "0%";
-          b.style.transform = "translateX(-50%)";
-        }
-      });
     }
 
     function setOnlineState(isOnline) {
@@ -627,12 +718,15 @@
         humLevelEl.textContent = "--";
         windLevelEl.textContent = "--";
         windDirTextEl.textContent = "--";
+        if (compassNeedleEl) {
+          compassNeedleEl.style.transform =
+            "translate(-50%, -80%) rotate(0deg)";
+        }
         rainStatusEl.textContent = "--";
         rainAdcEl.textContent = "ADC: --";
         luxLevelEl.textContent = "--";
 
         alertBoxEl.innerHTML = '<div class="no-alerts">Device offline</div>';
-        resetBands();
       }
     }
 
@@ -643,31 +737,7 @@
       setOnlineState(ok);
     }
 
-    function makeBandUpdater(element, min, max) {
-      const range = max - min;
-      return function(value) {
-        if (!element) return;
-        if (value == null || isNaN(value)) {
-          element.style.height = "0%";
-          element.style.transform = "translateX(-50%)";
-          return;
-        }
-        let v = Math.min(Math.max(value, min), max);
-        let pct = ((v - min) / range) * 100;
-        const minPct = 4;
-        if (pct < minPct) pct = minPct;
-        const tilt = (pct - 50) / 100 * 6;
-        element.style.height = pct + "%";
-        element.style.transform = `translateX(-50%) skewX(${tilt}deg)`;
-      };
-    }
-
-    const updateTempBand = makeBandUpdater(tempBand, 20, 40);
-    const updateHumBand  = makeBandUpdater(humBand, 0, 100);
-    const updateWindBand = makeBandUpdater(windBand, 0, 40);
-    const updatePresBand = makeBandUpdater(presBand, 980, 1040);
-    const updateLuxBand  = makeBandUpdater(luxBand, 0, 20000);
-
+    // ===== Color-state helpers =====
     function updateTempLevel(level) {
       let txt = level;
       let color = "#9ca3af";
@@ -738,7 +808,7 @@
         windSpeedEl.textContent = "--.-";
         windLevelEl.textContent = "--";
         windLevelEl.style.color = "#9ca3af";
-        updateWindBand(NaN);
+        addPoint(windChart, null);
         return;
       }
 
@@ -762,13 +832,16 @@
       windLevelEl.textContent = levelText;
       windLevelEl.style.color = color;
 
-      updateWindBand(speed);
+      addPoint(windChart, speed);
     }
 
     function updateWindDirection(code) {
       if (!code) {
         windDirTextEl.textContent = "--";
-        windArrowEl.style.transform = "rotate(0deg)";
+        if (compassNeedleEl) {
+          compassNeedleEl.style.transform =
+            "translate(-50%, -80%) rotate(0deg)";
+        }
         return;
       }
 
@@ -776,13 +849,16 @@
       let label = c;
       let angle = 0;
 
-      if (c === "N") { label = "NORTH"; angle = 0; }
-      else if (c === "E") { label = "EAST"; angle = 90; }
+      if (c === "N") { label = "NORTH"; angle =   0; }
+      else if (c === "E") { label = "EAST";  angle =  90; }
       else if (c === "S") { label = "SOUTH"; angle = 180; }
-      else if (c === "W") { label = "WEST"; angle = 270; }
+      else if (c === "W") { label = "WEST";  angle = 270; }
 
       windDirTextEl.textContent = label;
-      windArrowEl.style.transform = `rotate(${angle}deg)`;
+      if (compassNeedleEl) {
+        compassNeedleEl.style.transform =
+          `translate(-50%, -80%) rotate(${angle}deg)`;
+      }
     }
 
     function updateLux(luxStr) {
@@ -792,7 +868,7 @@
         luxEl.textContent = "--";
         luxLevelEl.textContent = "--";
         luxLevelEl.style.color = "#9ca3af";
-        updateLuxBand(NaN);
+        addPoint(luxChart, null);
         return;
       }
 
@@ -819,7 +895,7 @@
       luxLevelEl.textContent = levelText;
       luxLevelEl.style.color = color;
 
-      updateLuxBand(lux);
+      addPoint(luxChart, lux);
     }
 
     function setIndicator(on) {
@@ -867,6 +943,81 @@
       }
     }
 
+    // ===== Sparkline charts (Chart.js) =====
+    const maxPoints = 30;
+
+    function createSparkline(ctx, color, label, unit) {
+      return new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            label: label,
+            borderColor: color,
+            backgroundColor: "rgba(0,0,0,0)",
+            tension: 0.35,
+            pointRadius: 1.5,
+            pointHitRadius: 8,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                label: function(context) {
+                  const v = context.parsed.y;
+                  if (v == null || isNaN(v)) {
+                    return `${label}: --`;
+                  }
+                  const val = (unit.trim() === "lx" || unit.trim() === "hPa")
+                    ? v.toFixed(0)
+                    : v.toFixed(1);
+                  return `${label}: ${val}${unit}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          },
+          interaction: {
+            intersect: false,
+            mode: "index"
+          }
+        }
+      });
+    }
+
+    const tempChart = createSparkline(tempChartCtx, "#f97316", "Temperature", " °C");
+    const humChart  = createSparkline(humChartCtx,  "#38bdf8", "Humidity", " %");
+    const windChart = createSparkline(windChartCtx, "#22c55e", "Wind", " mph");
+    const luxChart  = createSparkline(luxChartCtx,  "#facc15", "Light", " lx");
+    const presChart = createSparkline(presChartCtx, "#a855f7", "Pressure", " hPa");
+
+    function addPoint(chart, value) {
+      if (!chart) return;
+      const data = chart.data.datasets[0].data;
+      const labels = chart.data.labels;
+
+      data.push(value);
+      labels.push("");
+
+      if (data.length > maxPoints) {
+        data.shift();
+        labels.shift();
+      }
+
+      chart.update();
+    }
+
+    // ===== MQTT client =====
     const client = mqtt.connect(host, options);
 
     client.on("connect", () => {
@@ -912,65 +1063,74 @@
         if (!isNaN(tVal)) {
           currentTemp = tVal;
           tempEl.textContent = tVal.toFixed(1);
-          updateTempBand(tVal);
+          addPoint(tempChart, tVal);
         } else {
           currentTemp = null;
           tempEl.textContent = payload;
-          updateTempBand(NaN);
+          addPoint(tempChart, null);
         }
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicHum) {
         const hVal = parseFloat(payload);
         if (!isNaN(hVal)) {
           currentHum = hVal;
           humEl.textContent = hVal.toFixed(1);
           updateHumLevel(hVal);
-          updateHumBand(hVal);
+          addPoint(humChart, hVal);
         } else {
           currentHum = null;
           humEl.textContent = payload;
           updateHumLevel(null);
-          updateHumBand(NaN);
+          addPoint(humChart, null);
         }
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicLevel) {
         updateTempLevel(payload.trim());
         setLastUpdate();
+
       } else if (topic === topicIndState) {
         ledStateEl.textContent = payload.toUpperCase();
         setLastUpdate();
+
       } else if (topic === topicPress) {
         const p = parseFloat(payload);
         if (!isNaN(p)) {
           currentPress = p;
           presEl.textContent = p.toFixed(1);
-          updatePresBand(p);
+          addPoint(presChart, p);
         } else {
           currentPress = null;
           presEl.textContent = payload;
-          updatePresBand(NaN);
+          addPoint(presChart, null);
         }
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicRainStatus) {
         updateRain(payload, lastRainAdcValue);
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicRainAdc) {
         const adc = parseInt(payload, 10);
         lastRainAdcValue = isNaN(adc) ? payload : adc;
         updateRain(rainStatusEl.textContent.replace(" ", "_"), lastRainAdcValue);
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicWindMph) {
         updateWindSpeed(payload);
         setLastUpdate();
         updateAlerts();
+
       } else if (topic === topicWindDir) {
         updateWindDirection(payload);
         setLastUpdate();
+
       } else if (topic === topicLux) {
         updateLux(payload);
         setLastUpdate();
@@ -980,6 +1140,3 @@
   </script>
 </body>
 </html>
-
-
-
